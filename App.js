@@ -1,4 +1,4 @@
- // ===== V18 Firestore-Only + Rules-Fixed - StudySpace =====
+ // ===== V18 Firestore-Only + Rules-Fixed - StudySpace - FIXED FOR LAUNCH =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp } from 'firebase/firestore';
@@ -19,6 +19,9 @@ Notifications.setNotificationHandler({ handleNotification: async () => ({ should
 let Location = null;
 if (Platform.OS !== 'web') { try { Location = require('expo-location'); } catch(e){} }
 
+// FIX 2: CHANGE THESE TO YOUR OWN UIDS ONLY - DO NOT SHARE THIS FILE WITH THESE UIDS IN IT
+// Get your UID from Firebase Console > Authentication > Users > User UID
+// Admins can SEED libraries, but they CANNOT bypass GPS anymore (see verifyInsideLibrary)
 const ADMIN_UIDS = ["pk5rTtFF5kMnptn9DXsHfbdiqlU2", "txahxHBf7eekwbfUv2w3bjSW", "ropL0m4qilVC2EvFSDqUWKU"];
 const PAYSTACK_SHOP_URL = "https://paystack.shop/pay/fkb0o0unff";
 const PHOTO_MAX_AGE_MS = 60000; const PHOTO_MAX_DISTANCE_M = 40; const MAX_PHOTO_SIZE_KB = 5000;
@@ -32,7 +35,6 @@ const INDOOR_DIRECTIONS = { "prempeh": { "A": "Ground Floor, Right wing, near en
 const FLOOR_PLANS = { "prempeh": { "G": { name: "Ground Floor", blocks: ["A - Right near entrance", "B - Left quiet zone", "C - Back computers"] } }, "default": { "G": { name: "Ground Floor", blocks: ["A - Block A", "B - Block B", "C - Block C"] } } };
 function getIndoorDirection(libraryId, block, row) { const libMap = INDOOR_DIRECTIONS[libraryId] || INDOOR_DIRECTIONS["default"]; const blockDir = libMap[block] || libMap["A"]; return `${blockDir}, Row ${row}`; }
 
-// V18: Firestore is single source of truth - no bundled libraries
 const LIBRARY_COORDINATES = { "prempeh": { latitude: 6.67493, longitude: -1.57123 }, "engineering": { latitude: 6.67455, longitude: -1.56985 }, "science": { latitude: 6.67715, longitude: -1.57015 }, "architecture": { latitude: 6.67685, longitude: -1.57255 }, "art": { latitude: 6.67620, longitude: -1.57310 }, "law": { latitude: 6.67405, longitude: -1.57305 }, "business": { latitude: 6.67380, longitude: -1.57220 }, "pharmacy": { latitude: 6.67490, longitude: -1.56850 }, "agriculture": { latitude: 6.67580, longitude: -1.56890 }, "health": { latitude: 6.67510, longitude: -1.56780 }, "humanities": { latitude: 6.67320, longitude: -1.57280 }, "idl": { latitude: 6.67290, longitude: -1.57150 }, "forestry": { latitude: 6.67590, longitude: -1.56810 }, "grinds": { latitude: 6.67420, longitude: -1.57180 }, };
 const KNUST_WALK_GRAPH = { "prempeh": { lat: 6.67493, lng: -1.57123, neighbors: { "grinds": 85, "engineering": 220, "science": 310, "business": 180, "humanities": 350 } }, "engineering": { lat: 6.67455, lng: -1.56985, neighbors: { "prempeh": 220, "pharmacy": 90, "agriculture": 150, "forestry": 180, "health": 280 } }, "science": { lat: 6.67715, lng: -1.57015, neighbors: { "prempeh": 310, "architecture": 120, "pharmacy": 280 } }, "architecture": { lat: 6.67685, lng: -1.57255, neighbors: { "science": 120, "art": 80, "prempeh": 250 } }, "art": { lat: 6.67620, lng: -1.57310, neighbors: { "architecture": 80, "law": 180, "business": 150 } }, "law": { lat: 6.67405, lng: -1.57305, neighbors: { "art": 180, "business": 110, "humanities": 180 } }, "business": { lat: 6.67380, lng: -1.57220, neighbors: { "law": 110, "art": 150, "prempeh": 180, "humanities": 150, "idl": 140 } }, "pharmacy": { lat: 6.67490, lng: -1.56850, neighbors: { "engineering": 90, "health": 120, "agriculture": 80 } }, "agriculture": { lat: 6.67580, lng: -1.56890, neighbors: { "pharmacy": 80, "forestry": 60, "engineering": 150 } }, "health": { lat: 6.67510, lng: -1.56780, neighbors: { "pharmacy": 120, "engineering": 280 } }, "humanities": { lat: 6.67320, lng: -1.57280, neighbors: { "business": 150, "law": 180, "idl": 100, "prempeh": 350 } }, "idl": { lat: 6.67290, lng: -1.57150, neighbors: { "humanities": 100, "business": 140 } }, "forestry": { lat: 6.67590, lng: -1.56810, neighbors: { "agriculture": 60, "engineering": 180 } }, "grinds": { lat: 6.67420, lng: -1.57180, neighbors: { "prempeh": 85 } }, };
 function getWalkingDistanceMeters(fromLibId, toLibId) { if (fromLibId === toLibId) return 30; const graph = KNUST_WALK_GRAPH; if (!graph[fromLibId] ||!graph[toLibId]) return 500; const distances = {}; const visited = {}; Object.keys(graph).forEach(k => distances[k] = Infinity); distances[fromLibId] = 0; for (let i = 0; i < Object.keys(graph).length; i++) { let min = Infinity, minNode = null; Object.keys(distances).forEach(node => { if (!visited[node] && distances[node] < min) { min = distances[node]; minNode = node; } }); if (!minNode) break; visited[minNode] = true; const neighbors = graph[minNode].neighbors || {}; Object.entries(neighbors).forEach(([nbr, w]) => { if (distances[minNode] + w < distances[nbr]) distances[nbr] = distances[minNode] + w; }); } return distances[toLibId] || 500; }
@@ -45,7 +47,6 @@ function getRealTimeSeats(lib) { const sec = toSeconds(lib.lastVerified); if (!s
 function getStatusFromSeats(seats, totalSeats) { if (seats <= 0) return 'full'; if (seats < totalSeats * 0.3) return 'half'; return 'empty'; }
 async function checkAndroidMockNative(position) { try { if (position && (position.mocked === true || position.coords?.mocked === true)) return true; return false; } catch(e){ return false; } }
 
-// ===== V16: Push Token =====
 async function registerPushToken(uid){
   try{
     if(Platform.OS==='web') return null;
@@ -118,7 +119,8 @@ export default function App() {
   const [userNearestLib, setUserNearestLib] = useState("prempeh"); const [queueMap, setQueueMap] = useState({});
   const [favLibId, setFavLibId] = useState(null); const [onlineCount, setOnlineCount] = useState(0);
 
-  const handleTitlePress = () => { const now = Date.now(); if (now - lastTapRef.current > 2000) setTapCount(1); else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (user) setShowAdmin(true); } } lastTapRef.current = now; };
+  // FIX 2: Only ADMIN_UIDS can open Admin panel - everyone else gets nothing on triple-tap
+  const handleTitlePress = () => { const now = Date.now(); if (now - lastTapRef.current > 2000) setTapCount(1); else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (user && ADMIN_UIDS.includes(user.uid)) setShowAdmin(true); } } lastTapRef.current = now; };
 
   useEffect(() => { const unsub = NetInfo.addEventListener(s => setIsOffline(!s.isConnected)); return () => unsub(); }, []);
 
@@ -135,7 +137,6 @@ export default function App() {
   useEffect(() => { AsyncStorage.setItem('cached_libraries', JSON.stringify(libraries)).catch(()=>{}); }, [libraries]);
   useEffect(() => { if (Object.keys(latestReports).length > 0) AsyncStorage.setItem('cached_latestReports', JSON.stringify(latestReports)).catch(()=>{}); }, [latestReports]);
 
-  // V18 FIX: Libraries from Firestore ONLY - with error handler so permission errors don't crash
   useEffect(() => {
     const unsubLibs = onSnapshot(collection(db, "libraries"), (s) => {
       if (s.empty) { setLibraries([]); return; }
@@ -160,7 +161,6 @@ export default function App() {
     return () => unsubLibs();
   }, []);
 
-  // V18 FIX: Presence - only when logged in
   useEffect(() => {
     if(!user) return;
     const setOnline = () => setDoc(doc(db,"users",user.uid), { presence: 'online', lastSeen: serverTimestamp() }, { merge:true }).catch(()=>{});
@@ -170,7 +170,6 @@ export default function App() {
     return ()=>{ setOffline(); sub.remove(); };
   }, [user]);
 
-  // V18 FIX: Online count - ONLY when logged in, this was the permission-denied crash
   useEffect(() => {
     if(!user) { setOnlineCount(0); return; }
     const unsub = onSnapshot(query(collection(db,"users"), where("presence","==","online")), s=> setOnlineCount(s.size), (e)=>{ console.log("online count error:", e.message); });
@@ -202,8 +201,8 @@ export default function App() {
     Alert.alert("My Library set", "App will open here next time like WhatsApp opens to chats");
   };
 
+  // FIX 3: DEV_BYPASS REMOVED - NO ONE bypasses GPS, not even admins. Everyone must be within 500m.
   const verifyInsideLibrary = async (reportedLib) => {
-    if (ADMIN_UIDS.includes(user?.uid)) return { allowed: true, distance: 0, accuracy: 5 };
     if(Platform.OS === 'web' ||!Location) return { allowed: true, distance: 0, accuracy: 0 };
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -260,7 +259,8 @@ export default function App() {
     if(isLeavingAction) return; setIsLeavingAction(true);
     try { if (isOffline) { Alert.alert("You are offline"); setIsLeavingAction(false); return; } let check = await verifyInsideLibrary(lib); if(!check.allowed){ setIsLeavingAction(false); return; } const newSeatsAfterEnter = Math.max(0, (getEffectiveData(lib).seats || 0) - 1); await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: newSeatsAfterEnter, status: getStatusFromSeats(newSeatsAfterEnter, lib.totalSeats), userId: user?.uid||"anon", deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, type: 'ENTER', createdAt: serverTimestamp(), trustScore, hasPhoto:false }); Alert.alert("Entered -1 seat"); setDetailLib(null); } catch(e){ Alert.alert(e.message); } finally { setIsLeavingAction(false); }
   };
-  const handlePaidConfirm = async () => { try { if (isOffline) { Alert.alert("You are offline"); return; } await addDoc(collection(db, "payments"), { userId: user.uid, libraryId: pendingPayLib?.id || null, libraryName: pendingPayLib?.name || null, amount: 1, currency: "GHS", provider: "paystack", status: "PENDING_VERIFICATION", createdAt: serverTimestamp() }); setShowPay(false); Alert.alert("Payment Received!", "Admin will verify."); if (pendingPayLib) setTimeout(() => toggleWatchlist(pendingPayLib), 500); } catch(e){ Alert.alert(e.message); } };
+  // FIX 1: NO fake premium. This only creates a PENDING payment for admin to verify. isPremium is NEVER set here.
+  const handlePaidConfirm = async () => { try { if (isOffline) { Alert.alert("You are offline"); return; } await addDoc(collection(db, "payments"), { userId: user.uid, libraryId: pendingPayLib?.id || null, libraryName: pendingPayLib?.name || null, amount: 1, currency: "GHS", provider: "paystack", status: "PENDING_VERIFICATION", createdAt: serverTimestamp() }); setShowPay(false); Alert.alert("Payment Received!", "Admin will verify and turn on Premium. Check back in a few minutes."); if (pendingPayLib) setTimeout(() => toggleWatchlist(pendingPayLib), 500); } catch(e){ Alert.alert(e.message); } };
   const toggleWatchlist = async (lib) => {
     if(isWatching) return; setIsWatching(true);
     try {
@@ -370,6 +370,18 @@ export default function App() {
           <View style={styles.actionRow}><TouchableOpacity disabled={isLeavingAction} onPress={()=> handleLeaveSeat(detailLib)} style={[styles.actionPill, {backgroundColor:'#f97316'}]}><Text style={styles.actionText}>{isLeavingAction?'...':'⬆️ Leave +1'}</Text></TouchableOpacity><TouchableOpacity onPress={()=> toggleWatchlist(detailLib)} style={[styles.actionPill, {backgroundColor: watchlist.includes(detailLib.id)? '#22c55e' : '#7c3aed'}]}><Text style={styles.actionText}>{watchlist.includes(detailLib.id)?'✓ In Queue - Tap to Leave':'🔔 Join Queue'}</Text></TouchableOpacity></View>
           {showReportInput && (<View style={styles.reportBox}><Text style={{fontWeight:'800', fontSize:13}}>How many free seats you see?</Text><TextInput autoFocus placeholder="e.g. 25" value={reportSeats} onChangeText={setReportSeats} keyboardType="numeric" style={styles.inputModern} /><TouchableOpacity onPress={takePhoto} style={[styles.primaryBtn, {backgroundColor: reportPhoto? '#22c55e':'#f59e0b', marginTop:8}]}><Text style={styles.primaryBtnText}>{reportPhoto?"Photo OK ✓":"📸 Take LIVE Photo - Required"}</Text></TouchableOpacity><View style={styles.actionRow}><TouchableOpacity onPress={()=>setShowReportInput(false)} style={[styles.actionPill, {backgroundColor:'#f1f5f9'}]}><Text style={[styles.actionText, {color:'#0f172a'}]}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={isSubmittingReport} onPress={submitReport} style={[styles.actionPill, {backgroundColor:'#0f172a'}]}><Text style={styles.actionText}>{isSubmittingReport?'Uploading...':'Submit'}</Text></TouchableOpacity></View></View>)}
         </>)}<TouchableOpacity onPress={()=>setDetailLib(null)} style={styles.closeBtn}><Text style={{textAlign:'center', fontWeight:'700', color:'#475569'}}>Close</Text></TouchableOpacity></View></View>
+      </Modal>
+      {/* FIX 1: Pay Modal - NO instant premium. Only WebView + request verification */}
+      <Modal visible={showPay} animationType="slide" onRequestClose={()=>setShowPay(false)}>
+        <View style={{flex:1, paddingTop:50, backgroundColor:'white'}}>
+          <Text style={{textAlign:'center', fontWeight:'900', fontSize:16}}>Get Premium - GHS 1</Text>
+          <Text style={{textAlign:'center', color:'#64748b', marginTop:6, paddingHorizontal:20}}>Pay with Paystack below, then tap "I've Paid" - Admin will verify and turn on Premium. No instant unlock.</Text>
+          <View style={{flex:1, marginTop:12}}>
+            <WebView source={{ uri: PAYSTACK_SHOP_URL }} style={{flex:1}} />
+          </View>
+          <TouchableOpacity onPress={handlePaidConfirm} style={{backgroundColor:'#22c55e', padding:16, margin:12, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>I've Paid - Request Verification</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
+        </View>
       </Modal>
       <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V18 Firestore-Only • {onlineCount} online</Text></TouchableOpacity></View>
     </View>
