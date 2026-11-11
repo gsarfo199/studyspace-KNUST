@@ -1,0 +1,9 @@
+{
+  "name": "functions",
+  "dependencies": {
+    "axios": "^1.21.1",
+    "expo-server-sdk": "^7.2.0",
+    "firebase-admin": "^11.0.0",
+    "firebase-functions": "^4.0.0"
+  }
+}
