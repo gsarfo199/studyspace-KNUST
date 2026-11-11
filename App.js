@@ -1,7 +1,7 @@
- // ===== V18 Firestore-Only + Rules-Fixed - StudySpace - FIXED FOR LAUNCH =====
+ // ===== V19 FINAL - All Lecturer Fixes Applied - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
-import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
 import { db, auth } from './firebaseConfig';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,10 +19,8 @@ Notifications.setNotificationHandler({ handleNotification: async () => ({ should
 let Location = null;
 if (Platform.OS !== 'web') { try { Location = require('expo-location'); } catch(e){} }
 
-// FIX 2: CHANGE THESE TO YOUR OWN UIDS ONLY - DO NOT SHARE THIS FILE WITH THESE UIDS IN IT
-// Get your UID from Firebase Console > Authentication > Users > User UID
-// Admins can SEED libraries, but they CANNOT bypass GPS anymore (see verifyInsideLibrary)
-const ADMIN_UIDS = ["pk5rTtFF5kMnptn9DXsHfbdiqlU2", "txahxHBf7eekwbfUv2w3bjSW", "ropL0m4qilVC2EvFSDqUWKU"];
+// V19 FIX: NO ADMIN_UIDS, NO ADMIN_CODE in client. Admin = doc in /admins/{uid} with active==true
+// PILOT ONLY: Paystack link is public, but isPremium is NEVER set by client. Admin verifies payment manually then sets users/{uid}.isPremium=true
 const PAYSTACK_SHOP_URL = "https://paystack.shop/pay/fkb0o0unff";
 const PHOTO_MAX_AGE_MS = 60000; const PHOTO_MAX_DISTANCE_M = 40; const MAX_PHOTO_SIZE_KB = 5000;
 
@@ -30,7 +28,6 @@ async function getMyDeviceId(){ let did = await AsyncStorage.getItem('deviceId')
 let lastPosCache = null;
 async function velocityCheck(newPos){ if(!lastPosCache) { lastPosCache = { lat: newPos.coords.latitude, lng: newPos.coords.longitude, time: Date.now() }; return false; } const dist = getDistanceMeters(lastPosCache.lat, lastPosCache.lng, newPos.coords.latitude, newPos.coords.longitude); const timeSec = (Date.now() - lastPosCache.time)/1000; const speedMs = dist / Math.max(1, timeSec); lastPosCache = { lat: newPos.coords.latitude, lng: newPos.coords.longitude, time: Date.now() }; if(speedMs > 20 && dist > 500) return true; return false; }
 
-// --- YOUR EXISTING HELPERS - KEEP AS IS ---
 const INDOOR_DIRECTIONS = { "prempeh": { "A": "Ground Floor, Right wing, near entrance", "B": "1st Floor, Left wing, quiet zone", "C": "2nd Floor, Left wing, Row near window" }, "default": { "A": "Ground Floor, Block A", "B": "First Floor, Block B, quiet zone", "C": "Second Floor, Block C, near window" } };
 const FLOOR_PLANS = { "prempeh": { "G": { name: "Ground Floor", blocks: ["A - Right near entrance", "B - Left quiet zone", "C - Back computers"] } }, "default": { "G": { name: "Ground Floor", blocks: ["A - Block A", "B - Block B", "C - Block C"] } } };
 function getIndoorDirection(libraryId, block, row) { const libMap = INDOOR_DIRECTIONS[libraryId] || INDOOR_DIRECTIONS["default"]; const blockDir = libMap[block] || libMap["A"]; return `${blockDir}, Row ${row}`; }
@@ -119,8 +116,8 @@ export default function App() {
   const [userNearestLib, setUserNearestLib] = useState("prempeh"); const [queueMap, setQueueMap] = useState({});
   const [favLibId, setFavLibId] = useState(null); const [onlineCount, setOnlineCount] = useState(0);
 
-  // FIX 2: Only ADMIN_UIDS can open Admin panel - everyone else gets nothing on triple-tap
-  const handleTitlePress = () => { const now = Date.now(); if (now - lastTapRef.current > 2000) setTapCount(1); else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (user && ADMIN_UIDS.includes(user.uid)) setShowAdmin(true); } } lastTapRef.current = now; };
+  // V19 FIX: Admin checked from Firestore /admins/{uid}, NOT hardcoded list. Silent fail for non-admins.
+  const handleTitlePress = async () => { const now = Date.now(); if (now - lastTapRef.current > 2000) { setTapCount(1); } else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (!user) return; try { const adminSnap = await getDoc(doc(db, "admins", user.uid)); if (adminSnap.exists() && adminSnap.data().active === true) setShowAdmin(true); } catch(e){} } } lastTapRef.current = now; };
 
   useEffect(() => { const unsub = NetInfo.addEventListener(s => setIsOffline(!s.isConnected)); return () => unsub(); }, []);
 
@@ -137,6 +134,7 @@ export default function App() {
   useEffect(() => { AsyncStorage.setItem('cached_libraries', JSON.stringify(libraries)).catch(()=>{}); }, [libraries]);
   useEffect(() => { if (Object.keys(latestReports).length > 0) AsyncStorage.setItem('cached_latestReports', JSON.stringify(latestReports)).catch(()=>{}); }, [latestReports]);
 
+  // V19 COST NOTE: 6 libraries = 6 docs per change. 1000 users x 100 changes = 600k reads = $0.36. Pilot is cheap. Production will use doc listener for selected library only.
   useEffect(() => {
     const unsubLibs = onSnapshot(collection(db, "libraries"), (s) => {
       if (s.empty) { setLibraries([]); return; }
@@ -201,7 +199,6 @@ export default function App() {
     Alert.alert("My Library set", "App will open here next time like WhatsApp opens to chats");
   };
 
-  // FIX 3: DEV_BYPASS REMOVED - NO ONE bypasses GPS, not even admins. Everyone must be within 500m.
   const verifyInsideLibrary = async (reportedLib) => {
     if(Platform.OS === 'web' ||!Location) return { allowed: true, distance: 0, accuracy: 0 };
     try {
@@ -219,7 +216,7 @@ export default function App() {
     } catch (e) { return { allowed: false, distance: 999, accuracy: 999 }; }
   };
   const getConsensusSeats = async (libraryId, newSeatsValue) => {
-    try { const q = query(collection(db, "reports"), where("libraryId", "==", libraryId), orderBy("createdAt","desc"), limit(20)); const snap = await getDocs(q); let values = []; const tenMinsAgoSec = Date.now()/1000 - 600; for (const docSnap of snap.docs){ const data = docSnap.data(); const sec = toSeconds(data.createdAt); if(sec > tenMinsAgoSec && typeof data.availableSeats === 'number'){ if((data.disputes?.length||0)>=2) continue; values.push(data.availableSeats); } } values.push(Number(newSeatsValue)); if(values.length === 0) return Number(newSeatsValue); values.sort((a,b) => a-b); const mid = Math.floor(values.length / 2); return values.length % 2!== 0? values[mid] : Math.round((values[mid-1] + values[mid]) / 2); } catch(e){ return Number(newSeatsValue); }
+    try { const q = query(collection(db, "reports"), where("libraryId", "==", libraryId), orderBy("createdAt","desc"), limit(20)); const snap = await getDocs(q); let values = []; const tenMinsAgoSec = Date.now()/1000 - 600; for (const docSnap of snap.docs){ const data = docSnap.data(); const sec = toSeconds(data.createdAt); if(sec > tenMinsAgoSec && typeof data.availableSeats === 'number' && data.availableSeats >= 0){ if((data.disputes?.length||0)>=2) continue; values.push(data.availableSeats); } } values.push(Number(newSeatsValue)); if(values.length === 0) return Number(newSeatsValue); values.sort((a,b) => a-b); const mid = Math.floor(values.length / 2); return values.length % 2!== 0? values[mid] : Math.round((values[mid-1] + values[mid]) / 2); } catch(e){ return Number(newSeatsValue); }
   };
   const checkRateLimit = async (libraryId) => {
     try { const q = query(collection(db, "reports"), where("userId", "==", user.uid), where("libraryId", "==", libraryId), orderBy("createdAt","desc"), limit(1)); const snap = await getDocs(q); if(!snap.empty) { const last = toSeconds(snap.docs[0].data().createdAt); const diffMins = (Date.now()/1000 - last)/60; if(diffMins < 5){ Alert.alert(`Wait ${Math.ceil(5 - diffMins)}m`); return false; } } return true; } catch(e){ return true; }
@@ -240,15 +237,16 @@ export default function App() {
   const handleDeclineAssignment = async (assignment) => {
     try { await updateDoc(doc(db,"leavingAssignments", assignment.id), { status: "DECLINED", declinedAt: serverTimestamp() }); Alert.alert("Declined", "Seat passed to next person."); const q = query(collection(db,"queue"), where("libraryId","==",assignment.libraryId), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1)); const snap = await getDocs(q); if(!snap.empty){ const nextDoc = snap.docs[0]; const next = nextDoc.data(); await addDoc(collection(db,"leavingAssignments"), { libraryId: assignment.libraryId, libraryName: assignment.libraryName, assignedTo: next.userId, assignedFrom: user.uid, block: assignment.block, row: assignment.row, status: "PENDING", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + 15*60*1000)) }); await recalcQueuePositions(assignment.libraryId); } } catch(e){ Alert.alert(e.message); }
   };
+  // V19 FIX: Use increment() - atomic, no race. 2 people leaving same second: 10 -> 12 correctly.
   const handleLeaveSeat = async (lib) => {
     if(isLeavingAction) return; setIsLeavingAction(true);
     try {
       if (isOffline) { Alert.alert("You are offline"); setIsLeavingAction(false); return; }
       let check = await verifyInsideLibrary(lib); if(!check.allowed){ setIsLeavingAction(false); return; }
       const myDeviceId = await getMyDeviceId(); const freeBlock = String.fromCharCode(65 + Math.floor(Math.random()*3)); const freeRow = Math.floor(Math.random()*8)+1;
-      const newSeatsAfterLeave = (getEffectiveData(lib).seats || 0) + 1;
-      await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: newSeatsAfterLeave, consensusSeats: newSeatsAfterLeave, status: getStatusFromSeats(newSeatsAfterLeave, lib.totalSeats), userId: user.uid, deviceId: myDeviceId, distance: check.distance, accuracy: check.accuracy, type: 'LEAVE', block: freeBlock, row: freeRow, createdAt: serverTimestamp(), trustScore, hasPhoto:false });
+      await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, consensusSeats: -1, status: getStatusFromSeats(getEffectiveData(lib).seats + 1, lib.totalSeats), userId: user.uid, deviceId: myDeviceId, distance: check.distance, accuracy: check.accuracy, type: 'LEAVE', block: freeBlock, row: freeRow, createdAt: serverTimestamp(), trustScore, hasPhoto:false });
       await addDoc(collection(db, "leavingReports"), { libraryId: lib.id, libraryName: lib.name, block: freeBlock, row: freeRow, userId: user.uid, createdAt: serverTimestamp(), });
+      await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() });
       const queueQ = query(collection(db,"queue"), where("libraryId","==",lib.id), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1));
       const queueSnap = await getDocs(queueQ);
       if(!queueSnap.empty){ const nextDoc = queueSnap.docs[0]; const next = nextDoc.data(); await addDoc(collection(db, "leavingAssignments"), { libraryId: lib.id, libraryName: lib.name, assignedTo: next.userId, assignedFrom: user.uid, block: freeBlock, row: freeRow, status: "PENDING", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + 15*60*1000)) }); await recalcQueuePositions(lib.id); Alert.alert(`You left! Seat given to next in queue`, `Block ${freeBlock} Row ${freeRow} -> Assigned.`); } else { Alert.alert(`You left! Block ${freeBlock} Row ${freeRow} now FREE`); }
@@ -257,9 +255,8 @@ export default function App() {
   };
   const doEnter = async (lib) => {
     if(isLeavingAction) return; setIsLeavingAction(true);
-    try { if (isOffline) { Alert.alert("You are offline"); setIsLeavingAction(false); return; } let check = await verifyInsideLibrary(lib); if(!check.allowed){ setIsLeavingAction(false); return; } const newSeatsAfterEnter = Math.max(0, (getEffectiveData(lib).seats || 0) - 1); await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: newSeatsAfterEnter, status: getStatusFromSeats(newSeatsAfterEnter, lib.totalSeats), userId: user?.uid||"anon", deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, type: 'ENTER', createdAt: serverTimestamp(), trustScore, hasPhoto:false }); Alert.alert("Entered -1 seat"); setDetailLib(null); } catch(e){ Alert.alert(e.message); } finally { setIsLeavingAction(false); }
+    try { if (isOffline) { Alert.alert("You are offline"); setIsLeavingAction(false); return; } let check = await verifyInsideLibrary(lib); if(!check.allowed){ setIsLeavingAction(false); return; } await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, status: getStatusFromSeats(Math.max(0, getEffectiveData(lib).seats - 1), lib.totalSeats), userId: user?.uid||"anon", deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, type: 'ENTER', createdAt: serverTimestamp(), trustScore, hasPhoto:false }); await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(-1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() }); Alert.alert("Entered -1 seat"); setDetailLib(null); } catch(e){ Alert.alert(e.message); } finally { setIsLeavingAction(false); }
   };
-  // FIX 1: NO fake premium. This only creates a PENDING payment for admin to verify. isPremium is NEVER set here.
   const handlePaidConfirm = async () => { try { if (isOffline) { Alert.alert("You are offline"); return; } await addDoc(collection(db, "payments"), { userId: user.uid, libraryId: pendingPayLib?.id || null, libraryName: pendingPayLib?.name || null, amount: 1, currency: "GHS", provider: "paystack", status: "PENDING_VERIFICATION", createdAt: serverTimestamp() }); setShowPay(false); Alert.alert("Payment Received!", "Admin will verify and turn on Premium. Check back in a few minutes."); if (pendingPayLib) setTimeout(() => toggleWatchlist(pendingPayLib), 500); } catch(e){ Alert.alert(e.message); } };
   const toggleWatchlist = async (lib) => {
     if(isWatching) return; setIsWatching(true);
@@ -294,7 +291,11 @@ export default function App() {
     try {
       const canReport = await checkRateLimit(target.id); if(!canReport){ setIsSubmittingReport(false); return; }
       const check = await verifyInsideLibrary(target); if(!check.allowed){ setIsSubmittingReport(false); return; }
-      if(reportPhoto){ if(photoTakenAt && (Date.now() - photoTakenAt > PHOTO_MAX_AGE_MS)){ Alert.alert("Photo too old"); setIsSubmittingReport(false); return; } if(photoLocation && target.latitude && target.longitude){ const photoDist = getDistanceMeters(photoLocation.lat, photoLocation.lng, target.latitude, target.longitude); if(photoDist > PHOTO_MAX_DISTANCE_M){ Alert.alert(`Photo taken ${Math.round(photoDist)}m away`); setIsSubmittingReport(false); return; } } }
+      // V19 FIX: Strict photo location - NO bypass if location missing
+      if (photoTakenAt && (Date.now() - photoTakenAt > PHOTO_MAX_AGE_MS)){ Alert.alert("Photo too old"); setIsSubmittingReport(false); return; }
+      if (!photoLocation) { Alert.alert("Photo location missing", "Turn on location for camera. Retake photo."); setIsSubmittingReport(false); return; }
+      if (photoLocation && target.latitude && target.longitude){ const photoDist = getDistanceMeters(photoLocation.lat, photoLocation.lng, target.latitude, target.longitude); if(photoDist > PHOTO_MAX_DISTANCE_M){ Alert.alert(`Photo taken ${Math.round(photoDist)}m away`); setIsSubmittingReport(false); return; } }
+      if (photoLocation && photoLocation.accuracy > 100){ Alert.alert(`Photo GPS too weak ${Math.round(photoLocation.accuracy)}m`); setIsSubmittingReport(false); return; }
       const consensusSeats = await getConsensusSeats(target.id, seatsNum); const statusFromSeats = getStatusFromSeats(consensusSeats, target.totalSeats);
       let photoUrl = null; if(reportPhoto && reportPhoto.base64){ try{ const fileName = `reports/${target.id}/${user.uid}_${Date.now()}.jpg`; const storageRef = ref(storage, fileName); await uploadString(storageRef, reportPhoto.base64, 'base64', { contentType: 'image/jpeg' }); photoUrl = await getDownloadURL(storageRef); }catch(e){ photoUrl = null; } }
       await addDoc(collection(db, "reports"), { libraryId: target.id, libraryName: target.name, availableSeats: seatsNum, consensusSeats, status: statusFromSeats, userId: user?.uid, deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, createdAt: serverTimestamp(), hasPhoto:true, photoUrl: photoUrl, confirmations: [], disputes: [], trustScore, karma, type: 'REPORT' });
@@ -305,7 +306,7 @@ export default function App() {
   const getEffectiveData = (lib) => {
     if (!lib) return { seats: 0, lastVerified: null, isFromLatest: false };
     const latest = latestReports[lib.id]; const libSeats = Math.max(0, Math.min(lib.totalSeats || 500, Number(lib.availableSeats) || 0)); const libTime = toSeconds(lib.lastVerified);
-    if (latest) { const reportTime = toSeconds(latest.createdAt); if (libTime > reportTime) return { seats: libSeats, lastVerified: lib.lastVerified || null, isFromLatest: false }; const effSeats = latest.consensusSeats ?? latest.availableSeats ?? 0; const safeSeats = Math.max(0, Math.min(lib.totalSeats || 500, Number(effSeats) || 0)); return { seats: safeSeats, lastVerified: latest.createdAt || null, isFromLatest: true }; }
+    if (latest) { const reportTime = toSeconds(latest.createdAt); if (libTime > reportTime) return { seats: libSeats, lastVerified: lib.lastVerified || null, isFromLatest: false }; const effSeats = latest.consensusSeats ?? latest.availableSeats ?? 0; if (effSeats === -1) return { seats: libSeats, lastVerified: lib.lastVerified || null, isFromLatest: false }; const safeSeats = Math.max(0, Math.min(lib.totalSeats || 500, Number(effSeats) || 0)); return { seats: safeSeats, lastVerified: latest.createdAt || null, isFromLatest: true }; }
     return { seats: libSeats, lastVerified: lib.lastVerified || null, isFromLatest: false };
   };
   const filteredLibraries = libraries.filter(l => { if(search &&!l.name.toLowerCase().includes(search.toLowerCase())) return false; return true; }).sort((a,b)=>{
@@ -371,7 +372,6 @@ export default function App() {
           {showReportInput && (<View style={styles.reportBox}><Text style={{fontWeight:'800', fontSize:13}}>How many free seats you see?</Text><TextInput autoFocus placeholder="e.g. 25" value={reportSeats} onChangeText={setReportSeats} keyboardType="numeric" style={styles.inputModern} /><TouchableOpacity onPress={takePhoto} style={[styles.primaryBtn, {backgroundColor: reportPhoto? '#22c55e':'#f59e0b', marginTop:8}]}><Text style={styles.primaryBtnText}>{reportPhoto?"Photo OK ✓":"📸 Take LIVE Photo - Required"}</Text></TouchableOpacity><View style={styles.actionRow}><TouchableOpacity onPress={()=>setShowReportInput(false)} style={[styles.actionPill, {backgroundColor:'#f1f5f9'}]}><Text style={[styles.actionText, {color:'#0f172a'}]}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={isSubmittingReport} onPress={submitReport} style={[styles.actionPill, {backgroundColor:'#0f172a'}]}><Text style={styles.actionText}>{isSubmittingReport?'Uploading...':'Submit'}</Text></TouchableOpacity></View></View>)}
         </>)}<TouchableOpacity onPress={()=>setDetailLib(null)} style={styles.closeBtn}><Text style={{textAlign:'center', fontWeight:'700', color:'#475569'}}>Close</Text></TouchableOpacity></View></View>
       </Modal>
-      {/* FIX 1: Pay Modal - NO instant premium. Only WebView + request verification */}
       <Modal visible={showPay} animationType="slide" onRequestClose={()=>setShowPay(false)}>
         <View style={{flex:1, paddingTop:50, backgroundColor:'white'}}>
           <Text style={{textAlign:'center', fontWeight:'900', fontSize:16}}>Get Premium - GHS 1</Text>
@@ -383,7 +383,7 @@ export default function App() {
           <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V18 Firestore-Only • {onlineCount} online</Text></TouchableOpacity></View>
+      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V19 FINAL • {onlineCount} online</Text></TouchableOpacity></View>
     </View>
   );
 }
