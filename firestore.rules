@@ -1,60 +1,39 @@
- rules_version = '2';
+  rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isAdmin() { return isSignedIn() && request.auth.uid in ["pk5rTtFF5kMnptn9DXsHfbdiqlU2", "txahxHBf7eekwbfUv2w3bjSW", "ropL0m4qilVC2EvFSDqUWKU"]; }
-
     match /libraries/{libId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
-
+    match /reports/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.availableSeats >= -1 && request.resource.data.availableSeats <= 1000;
+      allow update, delete: if false;
+    }
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['karma','trustScore','points','isPremium','extraWatches']);
-      allow delete: if isAdmin();
+      allow update: if isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['karma','isPremium','trustScore','extraWatches']);
+      allow delete: if false;
     }
-
-    match /reports/{reportId} {
-      allow read: if true;
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.availableSeats >= 0
-        && request.resource.data.availableSeats <= 500
-        && (request.resource.data.hasPhoto == true || request.resource.data.type in ['LEAVE','ENTER']);
-      allow update, delete: if isAdmin();
-    }
-
-    match /queue/{queueId} {
+    match /queue/{id} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if false;
     }
-    match /watchlist/{watchId} {
+    match /leavingAssignments/{id} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isAdmin();
+      allow update: if isSignedIn() && resource.data.assignedTo == request.auth.uid;
+      allow delete: if false;
     }
-
-    match /leavingAssignments/{assignId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.assignedFrom == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.assignedTo == request.auth.uid || resource.data.assignedFrom == request.auth.uid);
-      allow delete: if isAdmin();
-    }
-    match /leavingReports/{reportId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
-    }
-
-    match /payments/{payId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.status == "PENDING_VERIFICATION";
-      allow update, delete: if isAdmin();
-    }
+    match /watchlist/{id} { allow read: if isSignedIn(); allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow delete: if isSignedIn() && resource.data.userId == request.auth.uid; allow update: if false; }
+    match /payments/{id} { allow read: if isSignedIn(); allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update, delete: if isAdmin(); }
+    match /leavingReports/{id} { allow read: if isSignedIn(); allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update, delete: if false; }
+    match /admins/{id} { allow read: if isAdmin(); allow write: if false; }
   }
 }
