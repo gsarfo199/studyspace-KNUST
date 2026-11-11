@@ -1,13 +1,23 @@
-{
+ {
   "expo": {
     "name": "StudySpace KNUST",
     "slug": "studyspace-knust",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "studyspaceknust",
     "ios": {
+      "supportsTablet": true,
       "bundleIdentifier": "com.knust.studyspace",
-      "useFrameworks": "static"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "StudySpace needs your location to verify you are inside the library before you report or claim a seat.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "StudySpace needs your location to verify you are inside the library before you report or claim a seat."
+      }
     },
     "android": {
       "package": "com.knust.studyspace",
+      "versionCode": 1,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -17,7 +27,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow StudySpace to verify you are inside library #10 #35 #65"
+          "locationAlwaysAndWhenInUsePermission": "StudySpace needs your location to verify you are inside the library before you report or claim a seat."
         }
       ],
       [
@@ -34,6 +44,12 @@
         "projectId": "d804fee4-5016-4351-a0f5-a7e2ca17e858"
       }
     },
-    "owner": "starturn.09"
+    "owner": "starturn.09",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d804fee4-5016-4351-a0f5-a7e2ca17e858"
+    }
   }
 }
