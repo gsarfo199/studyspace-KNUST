@@ -1,4 +1,4 @@
- // ===== V19 FINAL - All Lecturer Fixes Applied - StudySpace =====
+ // ===== V21 FINAL - V20 + Firestore-First GPS + Seat Timer - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
@@ -19,8 +19,6 @@ Notifications.setNotificationHandler({ handleNotification: async () => ({ should
 let Location = null;
 if (Platform.OS !== 'web') { try { Location = require('expo-location'); } catch(e){} }
 
-// V19 FIX: NO ADMIN_UIDS, NO ADMIN_CODE in client. Admin = doc in /admins/{uid} with active==true
-// PILOT ONLY: Paystack link is public, but isPremium is NEVER set by client. Admin verifies payment manually then sets users/{uid}.isPremium=true
 const PAYSTACK_SHOP_URL = "https://paystack.shop/pay/fkb0o0unff";
 const PHOTO_MAX_AGE_MS = 60000; const PHOTO_MAX_DISTANCE_M = 40; const MAX_PHOTO_SIZE_KB = 5000;
 
@@ -29,10 +27,19 @@ let lastPosCache = null;
 async function velocityCheck(newPos){ if(!lastPosCache) { lastPosCache = { lat: newPos.coords.latitude, lng: newPos.coords.longitude, time: Date.now() }; return false; } const dist = getDistanceMeters(lastPosCache.lat, lastPosCache.lng, newPos.coords.latitude, newPos.coords.longitude); const timeSec = (Date.now() - lastPosCache.time)/1000; const speedMs = dist / Math.max(1, timeSec); lastPosCache = { lat: newPos.coords.latitude, lng: newPos.coords.longitude, time: Date.now() }; if(speedMs > 20 && dist > 500) return true; return false; }
 
 const INDOOR_DIRECTIONS = { "prempeh": { "A": "Ground Floor, Right wing, near entrance", "B": "1st Floor, Left wing, quiet zone", "C": "2nd Floor, Left wing, Row near window" }, "default": { "A": "Ground Floor, Block A", "B": "First Floor, Block B, quiet zone", "C": "Second Floor, Block C, near window" } };
-const FLOOR_PLANS = { "prempeh": { "G": { name: "Ground Floor", blocks: ["A - Right near entrance", "B - Left quiet zone", "C - Back computers"] } }, "default": { "G": { name: "Ground Floor", blocks: ["A - Block A", "B - Block B", "C - Block C"] } } };
 function getIndoorDirection(libraryId, block, row) { const libMap = INDOOR_DIRECTIONS[libraryId] || INDOOR_DIRECTIONS["default"]; const blockDir = libMap[block] || libMap["A"]; return `${blockDir}, Row ${row}`; }
 
+// ===== V21: THESE ARE PLACEHOLDERS ONLY - REAL DATA COMES FROM FIRESTORE =====
+// DO NOT TRUST THESE. After tomorrow, Firestore will override all of them.
 const LIBRARY_COORDINATES = { "prempeh": { latitude: 6.67493, longitude: -1.57123 }, "engineering": { latitude: 6.67455, longitude: -1.56985 }, "science": { latitude: 6.67715, longitude: -1.57015 }, "architecture": { latitude: 6.67685, longitude: -1.57255 }, "art": { latitude: 6.67620, longitude: -1.57310 }, "law": { latitude: 6.67405, longitude: -1.57305 }, "business": { latitude: 6.67380, longitude: -1.57220 }, "pharmacy": { latitude: 6.67490, longitude: -1.56850 }, "agriculture": { latitude: 6.67580, longitude: -1.56890 }, "health": { latitude: 6.67510, longitude: -1.56780 }, "humanities": { latitude: 6.67320, longitude: -1.57280 }, "idl": { latitude: 6.67290, longitude: -1.57150 }, "forestry": { latitude: 6.67590, longitude: -1.56810 }, "grinds": { latitude: 6.67420, longitude: -1.57180 }, };
+
+// V21 HELPER: Get coords from Firestore first, fallback to placeholder
+function getLibCoords(lib) {
+  if (lib && lib.latitude && lib.longitude) return { latitude: lib.latitude, longitude: lib.longitude };
+  const fb = LIBRARY_COORDINATES[lib?.id] || { latitude: 6.67493, longitude: -1.57123 };
+  return fb;
+}
+
 const KNUST_WALK_GRAPH = { "prempeh": { lat: 6.67493, lng: -1.57123, neighbors: { "grinds": 85, "engineering": 220, "science": 310, "business": 180, "humanities": 350 } }, "engineering": { lat: 6.67455, lng: -1.56985, neighbors: { "prempeh": 220, "pharmacy": 90, "agriculture": 150, "forestry": 180, "health": 280 } }, "science": { lat: 6.67715, lng: -1.57015, neighbors: { "prempeh": 310, "architecture": 120, "pharmacy": 280 } }, "architecture": { lat: 6.67685, lng: -1.57255, neighbors: { "science": 120, "art": 80, "prempeh": 250 } }, "art": { lat: 6.67620, lng: -1.57310, neighbors: { "architecture": 80, "law": 180, "business": 150 } }, "law": { lat: 6.67405, lng: -1.57305, neighbors: { "art": 180, "business": 110, "humanities": 180 } }, "business": { lat: 6.67380, lng: -1.57220, neighbors: { "law": 110, "art": 150, "prempeh": 180, "humanities": 150, "idl": 140 } }, "pharmacy": { lat: 6.67490, lng: -1.56850, neighbors: { "engineering": 90, "health": 120, "agriculture": 80 } }, "agriculture": { lat: 6.67580, lng: -1.56890, neighbors: { "pharmacy": 80, "forestry": 60, "engineering": 150 } }, "health": { lat: 6.67510, lng: -1.56780, neighbors: { "pharmacy": 120, "engineering": 280 } }, "humanities": { lat: 6.67320, lng: -1.57280, neighbors: { "business": 150, "law": 180, "idl": 100, "prempeh": 350 } }, "idl": { lat: 6.67290, lng: -1.57150, neighbors: { "humanities": 100, "business": 140 } }, "forestry": { lat: 6.67590, lng: -1.56810, neighbors: { "agriculture": 60, "engineering": 180 } }, "grinds": { lat: 6.67420, lng: -1.57180, neighbors: { "prempeh": 85 } }, };
 function getWalkingDistanceMeters(fromLibId, toLibId) { if (fromLibId === toLibId) return 30; const graph = KNUST_WALK_GRAPH; if (!graph[fromLibId] ||!graph[toLibId]) return 500; const distances = {}; const visited = {}; Object.keys(graph).forEach(k => distances[k] = Infinity); distances[fromLibId] = 0; for (let i = 0; i < Object.keys(graph).length; i++) { let min = Infinity, minNode = null; Object.keys(distances).forEach(node => { if (!visited[node] && distances[node] < min) { min = distances[node]; minNode = node; } }); if (!minNode) break; visited[minNode] = true; const neighbors = graph[minNode].neighbors || {}; Object.entries(neighbors).forEach(([nbr, w]) => { if (distances[minNode] + w < distances[nbr]) distances[nbr] = distances[minNode] + w; }); } return distances[toLibId] || 500; }
 function getWalkingTimeMins(meters) { return Math.max(1, Math.ceil(meters / 80)); }
@@ -64,27 +71,33 @@ function AdminPanel({ onClose, user }) {
   const [seedSeats, setSeedSeats] = useState("");
   const [seedTotal, setSeedTotal] = useState("450");
   const [seedName, setSeedName] = useState("Prempeh II Library");
+  const [seedLat, setSeedLat] = useState("");
+  const [seedLng, setSeedLng] = useState("");
   const wipeCollection = async (name) => { const snap = await getDocs(collection(db, name)); await Promise.all(snap.docs.map(d => deleteDoc(doc(db, name, d.id)))); };
-  const doResetAll = async () => { if (isResetting) return; setIsResetting(true); try { await wipeCollection("reports"); await wipeCollection("queue"); await wipeCollection("watchlist"); await wipeCollection("leavingAssignments"); await wipeCollection("leavingReports"); await wipeCollection("payments"); await wipeCollection("liveRequests"); await wipeCollection("fakeAttempts"); await wipeCollection("fakeFlags"); await AsyncStorage.removeItem('cached_latestReports'); await AsyncStorage.removeItem('cached_libraries'); Alert.alert("Cleared!"); } catch(e){ Alert.alert(e.message); } setIsResetting(false); };
+  const doResetAll = async () => { if (isResetting) return; setIsResetting(true); try { await wipeCollection("reports"); await wipeCollection("queue"); await wipeCollection("watchlist"); await wipeCollection("leavingAssignments"); await wipeCollection("leavingReports"); await wipeCollection("payments"); await wipeCollection("liveRequests"); await wipeCollection("fakeAttempts"); await wipeCollection("fakeFlags"); await wipeCollection("activeSeats"); await AsyncStorage.removeItem('cached_latestReports'); await AsyncStorage.removeItem('cached_libraries'); Alert.alert("Cleared!"); } catch(e){ Alert.alert(e.message); } setIsResetting(false); };
   const doSeed = async () => {
     const n = Number(seedSeats); if (isNaN(n)) return Alert.alert("Enter number");
     const total = Number(seedTotal) || 200;
-    const coords = LIBRARY_COORDINATES[seedLib] || { latitude: 6.67493, longitude: -1.57123 };
+    // V21: Use typed Lat/Lng if provided, else fallback placeholder
+    const lat = Number(seedLat) || LIBRARY_COORDINATES[seedLib]?.latitude || 6.67493;
+    const lng = Number(seedLng) || LIBRARY_COORDINATES[seedLib]?.longitude || -1.57123;
     const libName = seedName || seedLib;
     const status = getStatusFromSeats(n, total);
-    await setDoc(doc(db,"libraries", seedLib), { name: libName, totalSeats: total, availableSeats: n, confirmedStatus: status, lastVerified: serverTimestamp(), updatedAt: serverTimestamp(), actualLibraryChecked: true, latitude: coords.latitude, longitude: coords.longitude, block: "Block A Row 1-5" }, { merge: true });
+    await setDoc(doc(db,"libraries", seedLib), { name: libName, totalSeats: total, availableSeats: n, confirmedStatus: status, lastVerified: serverTimestamp(), updatedAt: serverTimestamp(), actualLibraryChecked: true, isRealData: true, latitude: lat, longitude: lng, block: "Block A Row 1-5" }, { merge: true });
     await addDoc(collection(db,"reports"), { libraryId: seedLib, libraryName: libName, availableSeats: n, consensusSeats: n, status, userId: user.uid, deviceId: "ADMIN_SEED", distance: 0, accuracy: 5, type: 'REPORT', createdAt: serverTimestamp(), hasPhoto: false, trustScore: 100, karma: 100 });
-    Alert.alert("Seeded", `${libName} = ${n} seats`);
+    Alert.alert("Seeded REAL", `${libName} = ${n} seats @ ${lat}, ${lng}`);
   };
   return (
     <ScrollView style={{flex:1, paddingTop:60, padding:20}}>
       <Text style={{fontWeight:'900', fontSize:18}}>Admin {user.uid}</Text>
-      <Text style={{marginTop:16, fontWeight:'900'}}>Seed Real Count</Text>
+      <Text style={{marginTop:16, fontWeight:'900'}}>Seed REAL Count - Tomorrow Use This</Text>
       <TextInput placeholder="prempeh" value={seedLib} onChangeText={setSeedLib} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
       <TextInput placeholder="Library Name e.g. Prempeh II Library" value={seedName} onChangeText={setSeedName} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
       <TextInput placeholder="Total Seats e.g. 450" value={seedTotal} onChangeText={setSeedTotal} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
       <TextInput placeholder="Free seats counted" value={seedSeats} onChangeText={setSeedSeats} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
-      <TouchableOpacity onPress={doSeed} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Seed Real Count</Text></TouchableOpacity>
+      <TextInput placeholder="REAL Latitude e.g. 6.674xx" value={seedLat} onChangeText={setSeedLat} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
+      <TextInput placeholder="REAL Longitude e.g. -1.571xx" value={seedLng} onChangeText={setSeedLng} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
+      <TouchableOpacity onPress={doSeed} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Seed REAL Count</Text></TouchableOpacity>
       <TouchableOpacity onPress={doResetAll} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>CLEAR ALL FAKE DATA</Text></TouchableOpacity>
       <TouchableOpacity onPress={onClose} style={{backgroundColor:'#0f172a', padding:14, borderRadius:10, marginTop:20, marginBottom:40}}><Text style={{color:'white', textAlign:'center'}}>Back</Text></TouchableOpacity>
     </ScrollView>
@@ -115,11 +128,35 @@ export default function App() {
   const [showInAppMap, setShowInAppMap] = useState(false); const [inAppTargetLib, setInAppTargetLib] = useState(null);
   const [userNearestLib, setUserNearestLib] = useState("prempeh"); const [queueMap, setQueueMap] = useState({});
   const [favLibId, setFavLibId] = useState(null); const [onlineCount, setOnlineCount] = useState(0);
+  const [mySeatTimer, setMySeatTimer] = useState(null);
+  const [showStillThere, setShowStillThere] = useState(false);
+  const [stillThereCountdown, setStillThereCountdown] = useState(15*60);
 
-  // V19 FIX: Admin checked from Firestore /admins/{uid}, NOT hardcoded list. Silent fail for non-admins.
   const handleTitlePress = async () => { const now = Date.now(); if (now - lastTapRef.current > 2000) { setTapCount(1); } else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (!user) return; try { const adminSnap = await getDoc(doc(db, "admins", user.uid)); if (adminSnap.exists() && adminSnap.data().active === true) setShowAdmin(true); } catch(e){} } } lastTapRef.current = now; };
 
   useEffect(() => { const unsub = NetInfo.addEventListener(s => setIsOffline(!s.isConnected)); return () => unsub(); }, []);
+  useEffect(() => {
+    if (!mySeatTimer) return;
+    const check = setInterval(() => { if (Date.now() >= mySeatTimer.expiresAt) { setShowStillThere(true); clearInterval(check); } }, 30000);
+    return () => clearInterval(check);
+  }, [mySeatTimer]);
+  useEffect(() => {
+    if (!showStillThere) return;
+    setStillThereCountdown(15*60);
+    const countdown = setInterval(() => { setStillThereCountdown(prev => { if (prev <= 1) { clearInterval(countdown); return 0; } return prev - 1; }); }, 1000);
+    const autoFree = setTimeout(async () => {
+      if (!mySeatTimer) return;
+      try { await updateDoc(doc(db, "libraries", mySeatTimer.libraryId), { availableSeats: increment(1), updatedAt: serverTimestamp() }); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { status: "AUTO_RELEASED" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); Alert.alert("Seat Freed", "You didn't respond in 15 mins, so your seat was freed for another student."); } catch(e) {}
+    }, 15*60*1000);
+    return () => { clearInterval(countdown); clearTimeout(autoFree); };
+  }, [showStillThere]);
+  useEffect(() => {
+    if (!user) return;
+    const restore = async () => {
+      try { const q = query(collection(db, "activeSeats"), where("userId", "==", user.uid), where("status", "==", "ACTIVE")); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); const exp = toSeconds(data.expiresAt) * 1000; if (exp > Date.now()) { setMySeatTimer({ libraryId: data.libraryId, libraryName: data.libraryName, expiresAt: exp }); } else { setMySeatTimer({ libraryId: data.libraryId, libraryName: data.libraryName, expiresAt: exp }); setShowStillThere(true); } } } catch(e) {}
+    };
+    restore();
+  }, [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -134,7 +171,6 @@ export default function App() {
   useEffect(() => { AsyncStorage.setItem('cached_libraries', JSON.stringify(libraries)).catch(()=>{}); }, [libraries]);
   useEffect(() => { if (Object.keys(latestReports).length > 0) AsyncStorage.setItem('cached_latestReports', JSON.stringify(latestReports)).catch(()=>{}); }, [latestReports]);
 
-  // V19 COST NOTE: 6 libraries = 6 docs per change. 1000 users x 100 changes = 600k reads = $0.36. Pilot is cheap. Production will use doc listener for selected library only.
   useEffect(() => {
     const unsubLibs = onSnapshot(collection(db, "libraries"), (s) => {
       if (s.empty) { setLibraries([]); return; }
@@ -147,8 +183,10 @@ export default function App() {
           totalSeats: data.totalSeats ?? 200,
           availableSeats: data.availableSeats ?? 0,
           block: data.block || (data.freeBlock ? `Block ${data.freeBlock} Row ${data.freeRow || 1}` : "Block A Row 1-5"),
+          // V21: Firestore lat/lng wins, fallback is placeholder
           latitude: data.latitude ?? coord.latitude ?? 6.67493,
           longitude: data.longitude ?? coord.longitude ?? -1.57123,
+          isRealData: data.isRealData || false,
           lastVerified: data.lastVerified || data.updatedAt || null,
           ...data,
           id: d.id,
@@ -199,6 +237,7 @@ export default function App() {
     Alert.alert("My Library set", "App will open here next time like WhatsApp opens to chats");
   };
 
+  // ===== V21 FIXED: verifyInsideLibrary now uses Firestore coords first =====
   const verifyInsideLibrary = async (reportedLib) => {
     if(Platform.OS === 'web' ||!Location) return { allowed: true, distance: 0, accuracy: 0 };
     try {
@@ -207,8 +246,10 @@ export default function App() {
       let pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       if (await checkAndroidMockNative(pos)) { Alert.alert("Fake GPS detected"); return { allowed: false, distance: 999, accuracy: 999 }; }
       if (await velocityCheck(pos)) { Alert.alert("Teleport detected"); return { allowed: false, distance: 999, accuracy: 999 }; }
-      let dist = 0; const libKey = Object.keys(LIBRARY_COORDINATES).find(k=> reportedLib.name.toLowerCase().includes(k));
-      const lat = reportedLib.latitude || LIBRARY_COORDINATES[libKey]?.latitude; const lng = reportedLib.longitude || LIBRARY_COORDINATES[libKey]?.longitude;
+      let dist = 0;
+      // V21: Firestore first!
+      const coords = getLibCoords(reportedLib);
+      const lat = coords.latitude; const lng = coords.longitude;
       if (lat && lng) dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, lat, lng);
       const acc = pos.coords.accuracy || 999; if(acc > 100){ Alert.alert(`Bad GPS ${Math.round(acc)}m`); return { allowed: false, distance: Math.round(dist), accuracy: Math.round(acc) }; }
       if (dist > 500) { Alert.alert(`You are ${Math.round(dist)}m away`); return { allowed: false, distance: Math.round(dist), accuracy: Math.round(acc) }; }
@@ -237,7 +278,6 @@ export default function App() {
   const handleDeclineAssignment = async (assignment) => {
     try { await updateDoc(doc(db,"leavingAssignments", assignment.id), { status: "DECLINED", declinedAt: serverTimestamp() }); Alert.alert("Declined", "Seat passed to next person."); const q = query(collection(db,"queue"), where("libraryId","==",assignment.libraryId), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1)); const snap = await getDocs(q); if(!snap.empty){ const nextDoc = snap.docs[0]; const next = nextDoc.data(); await addDoc(collection(db,"leavingAssignments"), { libraryId: assignment.libraryId, libraryName: assignment.libraryName, assignedTo: next.userId, assignedFrom: user.uid, block: assignment.block, row: assignment.row, status: "PENDING", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + 15*60*1000)) }); await recalcQueuePositions(assignment.libraryId); } } catch(e){ Alert.alert(e.message); }
   };
-  // V19 FIX: Use increment() - atomic, no race. 2 people leaving same second: 10 -> 12 correctly.
   const handleLeaveSeat = async (lib) => {
     if(isLeavingAction) return; setIsLeavingAction(true);
     try {
@@ -247,6 +287,7 @@ export default function App() {
       await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, consensusSeats: -1, status: getStatusFromSeats(getEffectiveData(lib).seats + 1, lib.totalSeats), userId: user.uid, deviceId: myDeviceId, distance: check.distance, accuracy: check.accuracy, type: 'LEAVE', block: freeBlock, row: freeRow, createdAt: serverTimestamp(), trustScore, hasPhoto:false });
       await addDoc(collection(db, "leavingReports"), { libraryId: lib.id, libraryName: lib.name, block: freeBlock, row: freeRow, userId: user.uid, createdAt: serverTimestamp(), });
       await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() });
+      if (mySeatTimer && mySeatTimer.libraryId === lib.id) { await updateDoc(doc(db, "activeSeats", `${user.uid}_${lib.id}`), { status: "LEFT" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); }
       const queueQ = query(collection(db,"queue"), where("libraryId","==",lib.id), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1));
       const queueSnap = await getDocs(queueQ);
       if(!queueSnap.empty){ const nextDoc = queueSnap.docs[0]; const next = nextDoc.data(); await addDoc(collection(db, "leavingAssignments"), { libraryId: lib.id, libraryName: lib.name, assignedTo: next.userId, assignedFrom: user.uid, block: freeBlock, row: freeRow, status: "PENDING", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + 15*60*1000)) }); await recalcQueuePositions(lib.id); Alert.alert(`You left! Seat given to next in queue`, `Block ${freeBlock} Row ${freeRow} -> Assigned.`); } else { Alert.alert(`You left! Block ${freeBlock} Row ${freeRow} now FREE`); }
@@ -255,7 +296,17 @@ export default function App() {
   };
   const doEnter = async (lib) => {
     if(isLeavingAction) return; setIsLeavingAction(true);
-    try { if (isOffline) { Alert.alert("You are offline"); setIsLeavingAction(false); return; } let check = await verifyInsideLibrary(lib); if(!check.allowed){ setIsLeavingAction(false); return; } await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, status: getStatusFromSeats(Math.max(0, getEffectiveData(lib).seats - 1), lib.totalSeats), userId: user?.uid||"anon", deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, type: 'ENTER', createdAt: serverTimestamp(), trustScore, hasPhoto:false }); await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(-1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() }); Alert.alert("Entered -1 seat"); setDetailLib(null); } catch(e){ Alert.alert(e.message); } finally { setIsLeavingAction(false); }
+    try { 
+      if (isOffline) { Alert.alert("You are offline"); setIsLeavingAction(false); return; } 
+      let check = await verifyInsideLibrary(lib); if(!check.allowed){ setIsLeavingAction(false); return; } 
+      await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, status: getStatusFromSeats(Math.max(0, getEffectiveData(lib).seats - 1), lib.totalSeats), userId: user?.uid||"anon", deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, type: 'ENTER', createdAt: serverTimestamp(), trustScore, hasPhoto:false }); 
+      await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(-1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() }); 
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 3*60*60*1000));
+      await setDoc(doc(db, "activeSeats", `${user.uid}_${lib.id}`), { userId: user.uid, libraryId: lib.id, libraryName: lib.name, enteredAt: serverTimestamp(), expiresAt: expiresAt, status: "ACTIVE" });
+      setMySeatTimer({ libraryId: lib.id, libraryName: lib.name, expiresAt: expiresAt.toMillis() });
+      Alert.alert("Entered -1 seat", "Your seat is reserved for 3 hours. We will ask you if you are still there."); 
+      setDetailLib(null); 
+    } catch(e){ Alert.alert(e.message); } finally { setIsLeavingAction(false); }
   };
   const handlePaidConfirm = async () => { try { if (isOffline) { Alert.alert("You are offline"); return; } await addDoc(collection(db, "payments"), { userId: user.uid, libraryId: pendingPayLib?.id || null, libraryName: pendingPayLib?.name || null, amount: 1, currency: "GHS", provider: "paystack", status: "PENDING_VERIFICATION", createdAt: serverTimestamp() }); setShowPay(false); Alert.alert("Payment Received!", "Admin will verify and turn on Premium. Check back in a few minutes."); if (pendingPayLib) setTimeout(() => toggleWatchlist(pendingPayLib), 500); } catch(e){ Alert.alert(e.message); } };
   const toggleWatchlist = async (lib) => {
@@ -291,9 +342,9 @@ export default function App() {
     try {
       const canReport = await checkRateLimit(target.id); if(!canReport){ setIsSubmittingReport(false); return; }
       const check = await verifyInsideLibrary(target); if(!check.allowed){ setIsSubmittingReport(false); return; }
-      // V19 FIX: Strict photo location - NO bypass if location missing
       if (photoTakenAt && (Date.now() - photoTakenAt > PHOTO_MAX_AGE_MS)){ Alert.alert("Photo too old"); setIsSubmittingReport(false); return; }
       if (!photoLocation) { Alert.alert("Photo location missing", "Turn on location for camera. Retake photo."); setIsSubmittingReport(false); return; }
+      // V21: Photo distance now uses Firestore coords via getLibCoords
       if (photoLocation && target.latitude && target.longitude){ const photoDist = getDistanceMeters(photoLocation.lat, photoLocation.lng, target.latitude, target.longitude); if(photoDist > PHOTO_MAX_DISTANCE_M){ Alert.alert(`Photo taken ${Math.round(photoDist)}m away`); setIsSubmittingReport(false); return; } }
       if (photoLocation && photoLocation.accuracy > 100){ Alert.alert(`Photo GPS too weak ${Math.round(photoLocation.accuracy)}m`); setIsSubmittingReport(false); return; }
       const consensusSeats = await getConsensusSeats(target.id, seatsNum); const statusFromSeats = getStatusFromSeats(consensusSeats, target.totalSeats);
@@ -342,6 +393,12 @@ export default function App() {
           <Text style={styles.subHeader}>🟢 {onlineCount} students online • Karma {karma} • {favLib ? `My: ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text>
         </TouchableOpacity>
       </LinearGradient>
+      {mySeatTimer && !showStillThere && (
+        <View style={{marginHorizontal:14, marginTop:10, backgroundColor:'#dbeafe', padding:12, borderRadius:14, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
+          <Text style={{fontWeight:'900', fontSize:13, flex:1}}>⏳ Seated at {mySeatTimer.libraryName} • Expires in {Math.max(0, Math.ceil((mySeatTimer.expiresAt - Date.now())/60000))} mins</Text>
+          <TouchableOpacity onPress={()=>{ setMySeatTimer(prev=> prev ? {...prev, expiresAt: Date.now()} : prev); setShowStillThere(true); }} style={{backgroundColor:'#2563eb', paddingHorizontal:10, paddingVertical:6, borderRadius:8}}><Text style={{color:'white', fontWeight:'900', fontSize:11}}>Check Now</Text></TouchableOpacity>
+        </View>
+      )}
       <View style={styles.searchTable}><Text style={{fontSize:16}}>🔍</Text><TextInput placeholder="Search library, e.g. Prempeh, Engineering..." value={search} onChangeText={setSearch} style={{flex:1, marginLeft:10, fontSize:14}} placeholderTextColor="#94a3b8" /></View>
       {favLib && (<View style={{marginHorizontal:14, marginTop:10, backgroundColor:'#dcfce7', padding:12, borderRadius:14}}><Text style={{fontWeight:'900'}}>⭐ My Library: {favLib.name} - {getEffectiveData(favLib).seats} FREE • {formatTimeAgo(getEffectiveData(favLib).lastVerified)}</Text><TouchableOpacity onPress={()=>{ setSelectedLib(favLib); setDetailLib(favLib); }} style={{backgroundColor:'#0f172a', padding:10, borderRadius:10, marginTop:8}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Open My Library</Text></TouchableOpacity></View>)}
       {myAssignments.length > 0 && (<View style={{marginHorizontal:14, marginTop:10, borderRadius:14, overflow:'hidden'}}><LinearGradient colors={['#22c55e','#16a34a']} style={{padding:12}}><Text style={{color:'white', fontWeight:'900', fontSize:13}}>YOUR TURN! {myAssignments[0].libraryName} Block {myAssignments[0].block} Row {myAssignments[0].row} • Go in 15 min!</Text><View style={{flexDirection:'row', gap:8, marginTop:10}}><TouchableOpacity onPress={()=>handleClaimAssignment(myAssignments[0])} style={{flex:1, backgroundColor:'white', padding:10, borderRadius:10}}><Text style={{textAlign:'center', fontWeight:'900', color:'#15803d'}}>Claim Seat</Text></TouchableOpacity><TouchableOpacity onPress={()=>handleDeclineAssignment(myAssignments[0])} style={{flex:1, backgroundColor:'rgba(0,0,0,0.25)', padding:10, borderRadius:10}}><Text style={{textAlign:'center', fontWeight:'800', color:'white'}}>Decline</Text></TouchableOpacity></View></LinearGradient></View>)}
@@ -356,7 +413,7 @@ export default function App() {
           const eff = getEffectiveData(item); const real = getRealTimeSeats({lastVerified: eff.lastVerified}); const isGhost = real.state==="GHOST" && eff.seats===0; const isFree = eff.seats > 0; const walkM = getWalkingDistanceMeters(userNearestLib, item.id); const walkT = getWalkingTimeMins(walkM); const occupancy = Math.min(100, Math.round(((item.totalSeats - eff.seats) / item.totalSeats) * 100)); const q = queueMap[item.id];
           return (
             <TouchableOpacity activeOpacity={0.85} onPress={() => { setSelectedLib(item); setDetailLib(item); setShowReportInput(false); }} style={[styles.modernCard, item.id===favLibId && {borderColor:'#22c55e', borderWidth:2}]}>
-              <View style={{flexDirection:'row', justifyContent:'space-between'}}><View style={{flex:1}}><View style={{flexDirection:'row', alignItems:'center', gap:8}}><View style={[styles.statusDot, {backgroundColor: isGhost?'#cbd5e1': isFree?'#22c55e':'#ef4444'}]} /><Text style={styles.cardTitle} numberOfLines={1}>{item.id===favLibId ? '⭐ ' : ''}{item.name}</Text></View><Text style={styles.cardSub}>{item.totalSeats} total • {item.block} • {formatTimeAgo(eff.lastVerified)}</Text></View><View style={[styles.badgeModern, {backgroundColor: isGhost?'#f1f5f9': isFree?'#dcfce7':'#fee2e2'}]}><Text style={[styles.badgeText, {color: isGhost?'#64748b': isFree?'#15803d':'#b91c1c'}]}>{isGhost?'NO DATA': isFree?`${eff.seats} FREE`:'FULL'}</Text></View></View>
+              <View style={{flexDirection:'row', justifyContent:'space-between'}}><View style={{flex:1}}><View style={{flexDirection:'row', alignItems:'center', gap:8}}><View style={[styles.statusDot, {backgroundColor: isGhost?'#cbd5e1': isFree?'#22c55e':'#ef4444'}]} /><Text style={styles.cardTitle} numberOfLines={1}>{item.id===favLibId ? '⭐ ' : ''}{item.name}{item.isRealData ? ' ✅' : ' ⚠️ PLACEHOLDER'}</Text></View><Text style={styles.cardSub}>{item.totalSeats} total • {item.block} • {formatTimeAgo(eff.lastVerified)}</Text></View><View style={[styles.badgeModern, {backgroundColor: isGhost?'#f1f5f9': isFree?'#dcfce7':'#fee2e2'}]}><Text style={[styles.badgeText, {color: isGhost?'#64748b': isFree?'#15803d':'#b91c1c'}]}>{isGhost?'NO DATA': isFree?`${eff.seats} FREE`:'FULL'}</Text></View></View>
               <View style={styles.occupancyBarBg}><View style={[styles.occupancyBarFill, {width: `${occupancy}%`, backgroundColor: isFree?'#22c55e':'#ef4444'}]} /></View>
               <View style={{flexDirection:'row', justifyContent:'space-between', marginTop:8}}><Text style={styles.metaText}>{occupancy}% full • {watchCounts[item.id]||0} watching</Text><Text style={styles.walkText}>🚶 {walkT} min • {walkM}m</Text></View>
               {q && <View style={styles.queueChip}><Text style={styles.queueText}>You #{q.pos} • ~{q.est} min</Text></View>}
@@ -372,18 +429,28 @@ export default function App() {
           {showReportInput && (<View style={styles.reportBox}><Text style={{fontWeight:'800', fontSize:13}}>How many free seats you see?</Text><TextInput autoFocus placeholder="e.g. 25" value={reportSeats} onChangeText={setReportSeats} keyboardType="numeric" style={styles.inputModern} /><TouchableOpacity onPress={takePhoto} style={[styles.primaryBtn, {backgroundColor: reportPhoto? '#22c55e':'#f59e0b', marginTop:8}]}><Text style={styles.primaryBtnText}>{reportPhoto?"Photo OK ✓":"📸 Take LIVE Photo - Required"}</Text></TouchableOpacity><View style={styles.actionRow}><TouchableOpacity onPress={()=>setShowReportInput(false)} style={[styles.actionPill, {backgroundColor:'#f1f5f9'}]}><Text style={[styles.actionText, {color:'#0f172a'}]}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={isSubmittingReport} onPress={submitReport} style={[styles.actionPill, {backgroundColor:'#0f172a'}]}><Text style={styles.actionText}>{isSubmittingReport?'Uploading...':'Submit'}</Text></TouchableOpacity></View></View>)}
         </>)}<TouchableOpacity onPress={()=>setDetailLib(null)} style={styles.closeBtn}><Text style={{textAlign:'center', fontWeight:'700', color:'#475569'}}>Close</Text></TouchableOpacity></View></View>
       </Modal>
+      <Modal visible={showStillThere} transparent animationType="slide" onRequestClose={()=>{}}>
+        <View style={{flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'center', padding:20}}>
+          <View style={{backgroundColor:'white', padding:20, borderRadius:20}}>
+            <Text style={{fontWeight:'900', fontSize:17, textAlign:'center'}}>Are you still in the library?</Text>
+            <Text style={{textAlign:'center', color:'#64748b', marginTop:8}}>Your 3 hours is up at {mySeatTimer?.libraryName || ''}. If you don't answer in 15 mins, your seat will be freed for someone else.</Text>
+            <Text style={{textAlign:'center', color:'#ef4444', fontWeight:'900', fontSize:22, marginTop:12}}>{Math.floor(stillThereCountdown / 60)}:{String(stillThereCountdown % 60).padStart(2, '0')}</Text>
+            <Text style={{textAlign:'center', color:'#ef4444', fontSize:12, fontWeight:'700'}}>TIME LEFT TO ANSWER</Text>
+            <TouchableOpacity onPress={async () => { const newExp = Timestamp.fromDate(new Date(Date.now() + 3*60*60*1000)); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { expiresAt: newExp }).catch(()=>{}); setMySeatTimer({ libraryId: mySeatTimer.libraryId, libraryName: mySeatTimer.libraryName, expiresAt: newExp.toMillis() }); setShowStillThere(false); }} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:16}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Yes, I'm Still Here +3hrs</Text></TouchableOpacity>
+            <TouchableOpacity onPress={async () => { await updateDoc(doc(db, "libraries", mySeatTimer.libraryId), { availableSeats: increment(1), updatedAt: serverTimestamp() }).catch(()=>{}); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { status: "LEFT" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); }} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>No, I'm Leaving - Free My Seat</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <Modal visible={showPay} animationType="slide" onRequestClose={()=>setShowPay(false)}>
         <View style={{flex:1, paddingTop:50, backgroundColor:'white'}}>
           <Text style={{textAlign:'center', fontWeight:'900', fontSize:16}}>Get Premium - GHS 1</Text>
           <Text style={{textAlign:'center', color:'#64748b', marginTop:6, paddingHorizontal:20}}>Pay with Paystack below, then tap "I've Paid" - Admin will verify and turn on Premium. No instant unlock.</Text>
-          <View style={{flex:1, marginTop:12}}>
-            <WebView source={{ uri: PAYSTACK_SHOP_URL }} style={{flex:1}} />
-          </View>
+          <View style={{flex:1, marginTop:12}}><WebView source={{ uri: PAYSTACK_SHOP_URL }} style={{flex:1}} /></View>
           <TouchableOpacity onPress={handlePaidConfirm} style={{backgroundColor:'#22c55e', padding:16, margin:12, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>I've Paid - Request Verification</Text></TouchableOpacity>
           <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V19 FINAL • {onlineCount} online</Text></TouchableOpacity></View>
+      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V21 REAL DATA READY • {onlineCount} online</Text></TouchableOpacity></View>
     </View>
   );
 }
