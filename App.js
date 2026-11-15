@@ -1,4 +1,4 @@
- // ===== V22 FINAL - V21 + Leaderboard - StudySpace =====
+ // ===== V24 FINAL - V22 + My Activity + VQ - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
@@ -71,6 +71,17 @@ function AdminPanel({ onClose, user }) {
   const [seedLat, setSeedLat] = useState("");
   const [seedLng, setSeedLng] = useState("");
   const wipeCollection = async (name) => { const snap = await getDocs(collection(db, name)); await Promise.all(snap.docs.map(d => deleteDoc(doc(db, name, d.id)))); };
+  const doResetKarma = async () => {
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      await Promise.all(snap.docs.map(d => updateDoc(doc(db, "users", d.id), { karma: 100, trustScore: 100 })));
+      const repSnap = await getDocs(collection(db, "reports"));
+      await Promise.all(repSnap.docs.map(d => deleteDoc(doc(db, "reports", d.id))));
+      const seatSnap = await getDocs(collection(db, "activeSeats"));
+      await Promise.all(seatSnap.docs.map(d => deleteDoc(doc(db, "activeSeats", d.id))));
+      Alert.alert("Cleared!", "All users reset to 100 karma. All fake reports deleted. Fresh start.");
+    } catch(e){ Alert.alert(e.message); }
+  };
   const doResetAll = async () => { if (isResetting) return; setIsResetting(true); try { await wipeCollection("reports"); await wipeCollection("queue"); await wipeCollection("watchlist"); await wipeCollection("leavingAssignments"); await wipeCollection("leavingReports"); await wipeCollection("payments"); await wipeCollection("liveRequests"); await wipeCollection("fakeAttempts"); await wipeCollection("fakeFlags"); await wipeCollection("activeSeats"); await AsyncStorage.removeItem('cached_latestReports'); await AsyncStorage.removeItem('cached_libraries'); Alert.alert("Cleared!"); } catch(e){ Alert.alert(e.message); } setIsResetting(false); };
   const doSeed = async () => {
     const n = Number(seedSeats); if (isNaN(n)) return Alert.alert("Enter number");
@@ -94,6 +105,7 @@ function AdminPanel({ onClose, user }) {
       <TextInput placeholder="REAL Latitude e.g. 6.674xx" value={seedLat} onChangeText={setSeedLat} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
       <TextInput placeholder="REAL Longitude e.g. -1.571xx" value={seedLng} onChangeText={setSeedLng} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
       <TouchableOpacity onPress={doSeed} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Seed REAL Count</Text></TouchableOpacity>
+      <TouchableOpacity onPress={doResetKarma} style={{backgroundColor:'#f59e0b', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>RESET ALL KARMA TO 100 - CLEAR FAKE POINTS</Text></TouchableOpacity>
       <TouchableOpacity onPress={doResetAll} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>CLEAR ALL FAKE DATA</Text></TouchableOpacity>
       <TouchableOpacity onPress={onClose} style={{backgroundColor:'#0f172a', padding:14, borderRadius:10, marginTop:20, marginBottom:40}}><Text style={{color:'white', textAlign:'center'}}>Back</Text></TouchableOpacity>
     </ScrollView>
@@ -131,6 +143,12 @@ export default function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
   const [myRank, setMyRank] = useState(null);
+  // ===== V24 MY ACTIVITY + VQ STATE =====
+  const [showActivity, setShowActivity] = useState(false);
+  const [activityTab, setActivityTab] = useState('queue');
+  const [myReportsList, setMyReportsList] = useState([]);
+  const [myLeavesList, setMyLeavesList] = useState([]);
+  const [myPurchasesList, setMyPurchasesList] = useState([]);
 
   const handleTitlePress = async () => { const now = Date.now(); if (now - lastTapRef.current > 2000) { setTapCount(1); } else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (!user) return; try { const adminSnap = await getDoc(doc(db, "admins", user.uid)); if (adminSnap.exists() && adminSnap.data().active === true) setShowAdmin(true); } catch(e){} } } lastTapRef.current = now; };
 
@@ -224,6 +242,21 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
+  // ===== V24 ACTIVITY LISTS + LIVE VQ COUNTS =====
+  useEffect(() => {
+    if(!user) return;
+    const un1 = onSnapshot(query(collection(db, "reports"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(20)), s => setMyReportsList(s.docs.map(d => ({id: d.id, ...d.data()}))), ()=>{});
+    const un2 = onSnapshot(query(collection(db, "leavingReports"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(20)), s => setMyLeavesList(s.docs.map(d => ({id: d.id, ...d.data()}))), ()=>{});
+    const un3 = onSnapshot(query(collection(db, "payments"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(20)), s => setMyPurchasesList(s.docs.map(d => ({id: d.id, ...d.data()}))), ()=>{});
+    // VQ live: watchlist counts for all libraries
+    const un4 = onSnapshot(collection(db, "watchlist"), s => {
+      const counts = {};
+      s.forEach(d => { const lid = d.data().libraryId; counts[lid] = (counts[lid] || 0) + 1; });
+      setWatchCounts(counts);
+    }, ()=>{});
+    return () => { un1(); un2(); un3(); un4(); };
+  }, [user]);
+
   useEffect(() => {
     let unsubs = [];
     let unsubAuth = onAuthStateChanged(auth, async u=>{
@@ -237,7 +270,6 @@ export default function App() {
         unsubs.push(onSnapshot(query(collection(db,"leavingAssignments"), where("assignedTo","==",u.uid), where("status","==","PENDING")), s=>setMyAssignments(s.docs.map(d=>({id:d.id,...d.data()}))), (e)=>{ console.log("assignments error:", e.message); }));
         unsubs.push(onSnapshot(query(collection(db,"queue"), where("userId","==",u.uid), where("status","==","WAITING")), s=>{ const map={}; s.docs.forEach(d=>{ const data=d.data(); map[data.libraryId]={ pos: data.position||99, est: data.estMins||15, id: d.id }; }); setQueueMap(map); }, (e)=>{ console.log("queue error:", e.message); }));
         unsubs.push(onSnapshot(query(collection(db,"reports"), where("userId","==",u.uid)), s=> setTotalReportsCount(s.size), (e)=>{ console.log("my reports error:", e.message); }));
-        try { const wcSnap = await getDocs(collection(db,"watchlist")); const counts={}; wcSnap.forEach(d=>{ counts[d.data().libraryId]=(counts[d.data().libraryId]||0)+1; }); setWatchCounts(counts); } catch(e) {}
       }
     });
     return ()=>{ unsubs.forEach(fn => { try{ fn(); }catch(e){} }); unsubAuth(); };
@@ -297,10 +329,12 @@ export default function App() {
       await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, consensusSeats: -1, status: getStatusFromSeats(getEffectiveData(lib).seats + 1, lib.totalSeats), userId: user.uid, deviceId: myDeviceId, distance: check.distance, accuracy: check.accuracy, type: 'LEAVE', block: freeBlock, row: freeRow, createdAt: serverTimestamp(), trustScore, hasPhoto:false });
       await addDoc(collection(db, "leavingReports"), { libraryId: lib.id, libraryName: lib.name, block: freeBlock, row: freeRow, userId: user.uid, createdAt: serverTimestamp(), });
       await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() });
+      // V24: Leave also gives +5 karma so VQ leaders move
+      await updateDoc(doc(db, "users", user.uid), { karma: increment(5) }).catch(()=>{});
       if (mySeatTimer && mySeatTimer.libraryId === lib.id) { await updateDoc(doc(db, "activeSeats", `${user.uid}_${lib.id}`), { status: "LEFT" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); }
       const queueQ = query(collection(db,"queue"), where("libraryId","==",lib.id), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1));
       const queueSnap = await getDocs(queueQ);
-      if(!queueSnap.empty){ const nextDoc = queueSnap.docs[0]; const next = nextDoc.data(); await addDoc(collection(db, "leavingAssignments"), { libraryId: lib.id, libraryName: lib.name, assignedTo: next.userId, assignedFrom: user.uid, block: freeBlock, row: freeRow, status: "PENDING", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + 15*60*1000)) }); await recalcQueuePositions(lib.id); Alert.alert(`You left! Seat given to next in queue`, `Block ${freeBlock} Row ${freeRow} -> Assigned.`); } else { Alert.alert(`You left! Block ${freeBlock} Row ${freeRow} now FREE`); }
+      if(!queueSnap.empty){ const nextDoc = queueSnap.docs[0]; const next = nextDoc.data(); await addDoc(collection(db, "leavingAssignments"), { libraryId: lib.id, libraryName: lib.name, assignedTo: next.userId, assignedFrom: user.uid, block: freeBlock, row: freeRow, status: "PENDING", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + 15*60*1000)) }); await recalcQueuePositions(lib.id); Alert.alert(`You left! Seat given to next in queue`, `Block ${freeBlock} Row ${freeRow} -> Assigned. +5 Karma`); } else { Alert.alert(`You left! Block ${freeBlock} Row ${freeRow} now FREE • +5 Karma`); }
       setDetailLib(null);
     } catch(e){ Alert.alert(e.message); } finally { setIsLeavingAction(false); }
   };
@@ -360,7 +394,6 @@ export default function App() {
       let photoUrl = null; if(reportPhoto && reportPhoto.base64){ try{ const fileName = `reports/${target.id}/${user.uid}_${Date.now()}.jpg`; const storageRef = ref(storage, fileName); await uploadString(storageRef, reportPhoto.base64, 'base64', { contentType: 'image/jpeg' }); photoUrl = await getDownloadURL(storageRef); }catch(e){ photoUrl = null; } }
       await addDoc(collection(db, "reports"), { libraryId: target.id, libraryName: target.name, availableSeats: seatsNum, consensusSeats, status: statusFromSeats, userId: user?.uid, deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, createdAt: serverTimestamp(), hasPhoto:true, photoUrl: photoUrl, confirmations: [], disputes: [], trustScore, karma, type: 'REPORT' });
       await setDoc(doc(db,"libraries", target.id), { availableSeats: consensusSeats, confirmedStatus: statusFromSeats, lastVerified: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-      // V22: Reward karma for real report - leaderboard moves
       await updateDoc(doc(db, "users", user.uid), { karma: increment(10) }).catch(()=>{});
       setReportSeats(''); setReportPhoto(null); setShowReportInput(false); setDetailLib(null); setImpactText(`You helped! ${consensusSeats} seats • +10 Karma`); setShowImpactPop(true); setTimeout(()=>setShowImpactPop(false),3000);
     } catch (e) { Alert.alert(e.message); } finally { setIsSubmittingReport(false); }
@@ -403,10 +436,14 @@ export default function App() {
           <Text style={styles.titleTable}>StudySpace • {totalFree} FREE</Text>
           <Text style={styles.subHeader}>🟢 {onlineCount} students online • Karma {karma} • {favLib ? `My: ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text>
         </TouchableOpacity>
-        {/* V22 LEADERBOARD BUTTON */}
         <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{backgroundColor:'#f59e0b', padding:10, borderRadius:10, marginTop:10, flexDirection:'row', justifyContent:'space-between'}}>
           <Text style={{color:'white', fontWeight:'900'}}>🏆 Leaderboard - Top Reporters</Text>
           <Text style={{color:'white', fontWeight:'900'}}>{myRank ? `You #${myRank}` : `Karma ${karma}`} →</Text>
+        </TouchableOpacity>
+        {/* V24 MY ACTIVITY BUTTON */}
+        <TouchableOpacity onPress={() => setShowActivity(true)} style={{backgroundColor:'#0f172a', padding:10, borderRadius:10, marginTop:8, flexDirection:'row', justifyContent:'space-between'}}>
+          <Text style={{color:'white', fontWeight:'900'}}>📋 My Activity - Queue, Reports, Leaves, Purchases</Text>
+          <Text style={{color:'white', fontWeight:'900'}}>→</Text>
         </TouchableOpacity>
       </LinearGradient>
       {mySeatTimer && !showStillThere && (
@@ -466,7 +503,6 @@ export default function App() {
           <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      {/* V22 LEADERBOARD MODAL */}
       <Modal visible={showLeaderboard} animationType="slide" onRequestClose={() => setShowLeaderboard(false)}>
         <View style={{flex:1, backgroundColor:'#fff7ed', paddingTop:60, padding:16}}>
           <Text style={{fontSize:22, fontWeight:'900', textAlign:'center'}}>🏆 KNUST Leaderboard</Text>
@@ -487,7 +523,54 @@ export default function App() {
           <TouchableOpacity onPress={() => setShowLeaderboard(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:12, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V22 LEADERBOARD • {onlineCount} online</Text></TouchableOpacity></View>
+      {/* V24 MY ACTIVITY + VQ MODAL */}
+      <Modal visible={showActivity} animationType="slide" onRequestClose={() => setShowActivity(false)}>
+        <View style={{flex:1, backgroundColor:'#f8fafc', paddingTop:60, padding:16}}>
+          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center'}}>📋 My Activity</Text>
+          <Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>Your queue, reports, leaves & purchases</Text>
+          <View style={{flexDirection:'row', flexWrap:'wrap', gap:8, marginTop:16}}>
+            <TouchableOpacity onPress={() => setActivityTab('queue')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='queue' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='queue' ? 'white' : '#0f172a'}}>🔔 My Queue</Text><Text style={{fontSize:11, color: activityTab==='queue' ? 'white' : '#64748b'}}>{watchlist.length} watching</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActivityTab('reports')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='reports' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='reports' ? 'white' : '#0f172a'}}>📝 My Reports</Text><Text style={{fontSize:11, color: activityTab==='reports' ? 'white' : '#64748b'}}>{totalReportsCount} reports</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActivityTab('leaves')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='leaves' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='leaves' ? 'white' : '#0f172a'}}>⬆️ My Leaves</Text><Text style={{fontSize:11, color: activityTab==='leaves' ? 'white' : '#64748b'}}>{myLeavesList.length} leaves</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActivityTab('purchases')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='purchases' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='purchases' ? 'white' : '#0f172a'}}>💳 My Purchases</Text><Text style={{fontSize:11, color: activityTab==='purchases' ? 'white' : '#64748b'}}>{myPurchasesList.length} purchases</Text></TouchableOpacity>
+          </View>
+          <ScrollView style={{marginTop:16}} showsVerticalScrollIndicator={false}>
+            {activityTab === 'queue' && (
+              <View>
+                <Text style={{fontWeight:'900', fontSize:14}}>VQ - Who is watching with you?</Text>
+                {libraries.filter(l => watchlist.includes(l.id)).length === 0 && <Text style={{color:'#64748b', marginTop:8}}>You are not watching any library yet. Join a queue first.</Text>}
+                {libraries.filter(l => watchlist.includes(l.id)).map(lib => (
+                  <View key={lib.id} style={{backgroundColor:'white', padding:14, borderRadius:14, marginTop:10}}>
+                    <Text style={{fontWeight:'900'}}>{lib.name}</Text>
+                    <Text style={{color:'#64748b', fontSize:12, marginTop:4}}>👀 {watchCounts[lib.id] || 1} people watching this library right now</Text>
+                    <Text style={{color:'#64748b', fontSize:12}}>Your position: {queueMap[lib.id] ? `#${queueMap[lib.id].pos} • ~${queueMap[lib.id].est} min` : 'Watching'}</Text>
+                    <Text style={{fontSize:12, marginTop:4, color:'#15803d'}}>VQ: {watchCounts[lib.id] || 1} students want this library, including you</Text>
+                  </View>
+                ))}
+                <Text style={{fontWeight:'900', fontSize:14, marginTop:16}}>All Libraries - VQ Count</Text>
+                {libraries.map(lib => (
+                  <View key={'vq-'+lib.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8, flexDirection:'row', justifyContent:'space-between'}}>
+                    <Text style={{fontWeight:'700', fontSize:13}}>{lib.name}</Text>
+                    <Text style={{fontWeight:'900', color:'#7c3aed'}}>👀 {watchCounts[lib.id] || 0} watching</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {activityTab === 'reports' && (
+              <View>{myReportsList.length===0 && <Text style={{color:'#64748b'}}>No reports yet. Go to a library and report.</Text>}{myReportsList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8}}><Text style={{fontWeight:'900'}}>{r.libraryName} • {r.availableSeats} seats • {r.type}</Text><Text style={{color:'#64748b', fontSize:12}}>{formatTimeAgo(r.createdAt)} • {r.hasPhoto ? '📸 Photo' : 'No photo'}</Text></View>))}</View>
+            )}
+            {activityTab === 'leaves' && (
+              <View>{myLeavesList.length===0 && <Text style={{color:'#64748b'}}>No leaves yet.</Text>}{myLeavesList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8}}><Text style={{fontWeight:'900'}}>{r.libraryName} • Block {r.block} Row {r.row}</Text><Text style={{color:'#64748b', fontSize:12}}>{formatTimeAgo(r.createdAt)} • You left +1 seat</Text></View>))}</View>
+            )}
+            {activityTab === 'purchases' && (
+              <View>{myPurchasesList.length===0 && <Text style={{color:'#64748b'}}>No purchases yet. You are on FREE plan.</Text>}{myPurchasesList.map(p => (<View key={p.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8}}><Text style={{fontWeight:'900'}}>GHS {p.amount} • {p.status}</Text><Text style={{color:'#64748b', fontSize:12}}>{p.libraryName || 'Premium'} • {formatTimeAgo(p.createdAt)}</Text></View>))}</View>
+            )}
+            <View style={{height:20}} />
+          </ScrollView>
+          <TouchableOpacity onPress={() => setShowActivity(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:12, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
+        </View>
+      </Modal>
+      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V24 ACTIVITY + VQ • {onlineCount} online</Text></TouchableOpacity></View>
     </View>
   );
 }
