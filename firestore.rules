@@ -1,39 +1,82 @@
   rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    match /libraries/{libId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+
+    // Libraries - everyone can read, only admin can write
+    match /libraries/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
-    match /reports/{id} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.availableSeats >= -1 && request.resource.data.availableSeats <= 1000;
-      allow update, delete: if false;
-    }
+
+    // Users - everyone can read for Leaderboard, only owner can write
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['karma','isPremium','trustScore','extraWatches']);
-      allow delete: if false;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
-    match /queue/{id} {
+
+    match /admins/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    // Reports - everyone can read for consensus, owner can create
+    match /reports/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // Watchlist + Queue - V24 VQ NEEDS THIS: anyone signed in can READ all, to count watchers
+    match /watchlist/{docId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
     }
-    match /leavingAssignments/{id} {
+
+    match /queue/{docId} {
       allow read: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isSignedIn() && resource.data.assignedTo == request.auth.uid;
-      allow delete: if false;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
-    match /watchlist/{id} { allow read: if isSignedIn(); allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow delete: if isSignedIn() && resource.data.userId == request.auth.uid; allow update: if false; }
-    match /payments/{id} { allow read: if isSignedIn(); allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update, delete: if isAdmin(); }
-    match /leavingReports/{id} { allow read: if isSignedIn(); allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update, delete: if false; }
-    match /admins/{id} { allow read: if isAdmin(); allow write: if false; }
+
+    // V24 My Activity - Leaving, Payments, ActiveSeats
+    match /leavingReports/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /leavingAssignments/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{docId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /activeSeats/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Catch-all for other collections you already have
+    match /{document=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
   }
 }
