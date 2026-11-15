@@ -1,4 +1,4 @@
- // ===== V24 FINAL - V22 + My Activity + VQ - StudySpace =====
+ // ===== V24 FINAL UI - Same Logic, Better UI/UX - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
@@ -95,19 +95,22 @@ function AdminPanel({ onClose, user }) {
     Alert.alert("Seeded REAL", `${libName} = ${n} seats @ ${lat}, ${lng}`);
   };
   return (
-    <ScrollView style={{flex:1, paddingTop:60, padding:20}}>
-      <Text style={{fontWeight:'900', fontSize:18}}>Admin {user.uid}</Text>
-      <Text style={{marginTop:16, fontWeight:'900'}}>Seed REAL Count - Tomorrow Use This</Text>
-      <TextInput placeholder="prempeh" value={seedLib} onChangeText={setSeedLib} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
-      <TextInput placeholder="Library Name e.g. Prempeh II Library" value={seedName} onChangeText={setSeedName} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
-      <TextInput placeholder="Total Seats e.g. 450" value={seedTotal} onChangeText={setSeedTotal} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
-      <TextInput placeholder="Free seats counted" value={seedSeats} onChangeText={setSeedSeats} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
-      <TextInput placeholder="REAL Latitude e.g. 6.674xx" value={seedLat} onChangeText={setSeedLat} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
-      <TextInput placeholder="REAL Longitude e.g. -1.571xx" value={seedLng} onChangeText={setSeedLng} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
-      <TouchableOpacity onPress={doSeed} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Seed REAL Count</Text></TouchableOpacity>
-      <TouchableOpacity onPress={doResetKarma} style={{backgroundColor:'#f59e0b', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>RESET ALL KARMA TO 100 - CLEAR FAKE POINTS</Text></TouchableOpacity>
-      <TouchableOpacity onPress={doResetAll} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>CLEAR ALL FAKE DATA</Text></TouchableOpacity>
-      <TouchableOpacity onPress={onClose} style={{backgroundColor:'#0f172a', padding:14, borderRadius:10, marginTop:20, marginBottom:40}}><Text style={{color:'white', textAlign:'center'}}>Back</Text></TouchableOpacity>
+    <ScrollView style={{flex:1, paddingTop:60, padding:20, backgroundColor:'#f8fafc'}}>
+      <Text style={{fontWeight:'900', fontSize:20}}>Admin Panel</Text>
+      <Text style={{color:'#64748b', marginTop:4}}>{user.uid}</Text>
+      <View style={{backgroundColor:'white', padding:16, borderRadius:20, marginTop:16, shadowColor:'#000', shadowOpacity:0.06, shadowRadius:10, elevation:3}}>
+        <Text style={{fontWeight:'900'}}>Seed REAL Count</Text>
+        <TextInput placeholder="prempeh" value={seedLib} onChangeText={setSeedLib} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
+        <TextInput placeholder="Library Name e.g. Prempeh II Library" value={seedName} onChangeText={setSeedName} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
+        <TextInput placeholder="Total Seats e.g. 450" value={seedTotal} onChangeText={setSeedTotal} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
+        <TextInput placeholder="Free seats counted" value={seedSeats} onChangeText={setSeedSeats} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} />
+        <TextInput placeholder="REAL Latitude e.g. 6.674xx" value={seedLat} onChangeText={setSeedLat} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
+        <TextInput placeholder="REAL Longitude e.g. -1.571xx" value={seedLng} onChangeText={setSeedLng} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} />
+        <TouchableOpacity onPress={doSeed} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Seed REAL Count</Text></TouchableOpacity>
+        <TouchableOpacity onPress={doResetKarma} style={{backgroundColor:'#f59e0b', padding:15, borderRadius:12, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>RESET ALL KARMA TO 100</Text></TouchableOpacity>
+        <TouchableOpacity onPress={doResetAll} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>CLEAR ALL FAKE DATA</Text></TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={onClose} style={{backgroundColor:'#0f172a', padding:14, borderRadius:12, marginTop:20, marginBottom:40}}><Text style={{color:'white', textAlign:'center'}}>Back</Text></TouchableOpacity>
     </ScrollView>
   );
 }
@@ -139,11 +142,9 @@ export default function App() {
   const [mySeatTimer, setMySeatTimer] = useState(null);
   const [showStillThere, setShowStillThere] = useState(false);
   const [stillThereCountdown, setStillThereCountdown] = useState(15*60);
-  // ===== V22 LEADERBOARD STATE =====
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
   const [myRank, setMyRank] = useState(null);
-  // ===== V24 MY ACTIVITY + VQ STATE =====
   const [showActivity, setShowActivity] = useState(false);
   const [activityTab, setActivityTab] = useState('queue');
   const [myReportsList, setMyReportsList] = useState([]);
@@ -229,7 +230,6 @@ export default function App() {
     return ()=>unsub();
   }, [user]);
 
-  // ===== V22 LEADERBOARD LISTENER =====
   useEffect(() => {
     if(!user) return;
     const unsub = onSnapshot(query(collection(db, "users"), orderBy("karma", "desc"), limit(10)), s => {
@@ -242,13 +242,11 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
-  // ===== V24 ACTIVITY LISTS + LIVE VQ COUNTS =====
   useEffect(() => {
     if(!user) return;
     const un1 = onSnapshot(query(collection(db, "reports"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(20)), s => setMyReportsList(s.docs.map(d => ({id: d.id, ...d.data()}))), ()=>{});
     const un2 = onSnapshot(query(collection(db, "leavingReports"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(20)), s => setMyLeavesList(s.docs.map(d => ({id: d.id, ...d.data()}))), ()=>{});
     const un3 = onSnapshot(query(collection(db, "payments"), where("userId", "==", user.uid), orderBy("createdAt", "desc"), limit(20)), s => setMyPurchasesList(s.docs.map(d => ({id: d.id, ...d.data()}))), ()=>{});
-    // VQ live: watchlist counts for all libraries
     const un4 = onSnapshot(collection(db, "watchlist"), s => {
       const counts = {};
       s.forEach(d => { const lid = d.data().libraryId; counts[lid] = (counts[lid] || 0) + 1; });
@@ -329,7 +327,6 @@ export default function App() {
       await addDoc(collection(db, "reports"), { libraryId: lib.id, libraryName: lib.name, availableSeats: -1, consensusSeats: -1, status: getStatusFromSeats(getEffectiveData(lib).seats + 1, lib.totalSeats), userId: user.uid, deviceId: myDeviceId, distance: check.distance, accuracy: check.accuracy, type: 'LEAVE', block: freeBlock, row: freeRow, createdAt: serverTimestamp(), trustScore, hasPhoto:false });
       await addDoc(collection(db, "leavingReports"), { libraryId: lib.id, libraryName: lib.name, block: freeBlock, row: freeRow, userId: user.uid, createdAt: serverTimestamp(), });
       await updateDoc(doc(db, "libraries", lib.id), { availableSeats: increment(1), lastVerified: serverTimestamp(), updatedAt: serverTimestamp() });
-      // V24: Leave also gives +5 karma so VQ leaders move
       await updateDoc(doc(db, "users", user.uid), { karma: increment(5) }).catch(()=>{});
       if (mySeatTimer && mySeatTimer.libraryId === lib.id) { await updateDoc(doc(db, "activeSeats", `${user.uid}_${lib.id}`), { status: "LEFT" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); }
       const queueQ = query(collection(db,"queue"), where("libraryId","==",lib.id), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1));
@@ -411,17 +408,24 @@ export default function App() {
   const totalFree = libraries.reduce((a,b)=>{ const eff = getEffectiveData(b); return a+(eff.seats||0); },0);
   const favLib = favLibId ? libraries.find(l=>l.id===favLibId) : null;
 
-  if(authLoading){ return (<View style={{flex:1, backgroundColor:'#0f172a', justifyContent:'center', alignItems:'center'}}><Text style={{color:'white', fontWeight:'900', fontSize:24}}>StudySpace</Text><Text style={{color:'#94a3b8', marginTop:8}}>Loading...</Text></View>); }
+  if(authLoading){ return (<View style={{flex:1, backgroundColor:'#0f172a', justifyContent:'center', alignItems:'center'}}><Text style={{color:'white', fontWeight:'900', fontSize:28}}>📚 StudySpace</Text><Text style={{color:'#94a3b8', marginTop:8}}>Loading...</Text></View>); }
   if(!user){
     return (
-      <LinearGradient colors={['#0f172a','#1e293b']} style={styles.containerAuth}>
-        <Text style={styles.titleAuth}>StudySpace</Text><Text style={styles.subAuth}>KNUST Live • {onlineCount} online now</Text>
+      <LinearGradient colors={['#0f172a','#1e293b','#0f172a']} style={styles.containerAuth}>
+        <Text style={{fontSize:44, textAlign:'center', marginTop:10}}>📚</Text>
+        <Text style={styles.titleAuth}>StudySpace</Text><Text style={styles.subAuth}>KNUST Live • Find a seat in seconds</Text>
+        <View style={{flexDirection:'row', justifyContent:'center', gap:8, marginTop:14}}>
+          <View style={styles.authPill}><Text style={{fontWeight:'800', fontSize:12}}>🟢 {onlineCount} online</Text></View>
+          <View style={styles.authPill}><Text style={{fontWeight:'800', fontSize:12}}>✅ Real reports only</Text></View>
+        </View>
         <View style={styles.authCard}>
-          <View style={{flexDirection:'row', alignItems:'center', marginBottom:14}}><Switch value={consentGiven} onValueChange={async (v)=>{ setConsentGiven(v); if(v){ await AsyncStorage.setItem('consentGiven','1'); } }} trackColor={{false:'#e2e8f0', true:'#22c55e'}} /><Text style={{fontSize:12, marginLeft:8, color:'#475569'}}>I accept anti-sybil & privacy</Text></View>
+          <Text style={{fontWeight:'900', fontSize:16}}>Welcome back</Text>
+          <Text style={{color:'#64748b', fontSize:12, marginTop:4}}>Login to see live seats and join queue</Text>
+          <View style={{flexDirection:'row', alignItems:'center', marginTop:14}}><Switch value={consentGiven} onValueChange={async (v)=>{ setConsentGiven(v); if(v){ await AsyncStorage.setItem('consentGiven','1'); } }} trackColor={{false:'#e2e8f0', true:'#22c55e'}} /><Text style={{fontSize:12, marginLeft:8, color:'#475569'}}>I accept anti-sybil & privacy</Text></View>
           <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.inputModern} autoCapitalize='none' placeholderTextColor="#94a3b8" />
           <TextInput placeholder="Phone (unique)" value={phone} onChangeText={setPhone} style={styles.inputModern} keyboardType="phone-pad" placeholderTextColor="#94a3b8" />
           <TextInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry style={styles.inputModern} placeholderTextColor="#94a3b8" />
-          <TouchableOpacity disabled={isAuthBusy} onPress={()=>handleAuth(false)} style={[styles.primaryBtn, {opacity: isAuthBusy ? 0.6 : 1}]}><Text style={styles.primaryBtnText}>{isAuthBusy ? 'Please wait...' : 'Login'}</Text></TouchableOpacity>
+          <TouchableOpacity disabled={isAuthBusy} onPress={()=>handleAuth(false)} style={[styles.primaryBtn, {opacity: isAuthBusy ? 0.6 : 1}]}><Text style={styles.primaryBtnText}>{isAuthBusy ? 'Please wait...' : 'Login →'}</Text></TouchableOpacity>
           <TouchableOpacity disabled={isAuthBusy} onPress={()=>handleAuth(true)} style={[styles.secondaryBtn, {opacity: isAuthBusy ? 0.6 : 1}]}><Text style={styles.secondaryBtnText}>Create account • 3 FREE watches</Text></TouchableOpacity>
           {isOffline && <Text style={{textAlign:'center', color:'#ef4444', fontSize:11, marginTop:10}}>You are offline - showing cached</Text>}
         </View>
@@ -431,125 +435,145 @@ export default function App() {
   if(showAdmin){ return <AdminPanel onClose={()=>setShowAdmin(false)} user={user} />; }
   return (
     <View style={styles.containerTable}>
-      <LinearGradient colors={['#ffffff','#f8fafc']} style={styles.header}>
-        <TouchableOpacity onPress={handleTitlePress}>
-          <Text style={styles.titleTable}>StudySpace • {totalFree} FREE</Text>
-          <Text style={styles.subHeader}>🟢 {onlineCount} students online • Karma {karma} • {favLib ? `My: ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text>
+      <LinearGradient colors={['#0f172a','#1e293b']} style={styles.header}>
+        <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.9}>
+          <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start'}}>
+            <View>
+              <Text style={{color:'white', fontSize:22, fontWeight:'900', letterSpacing:-0.5}}>📚 StudySpace</Text>
+              <Text style={{color:'#cbd5e1', fontSize:12, marginTop:4}}>KNUST • Find a seat in seconds</Text>
+            </View>
+            <View style={{backgroundColor:'white', paddingHorizontal:12, paddingVertical:8, borderRadius:16, alignItems:'center'}}>
+              <Text style={{fontSize:20, fontWeight:'900', color:'#0f172a', lineHeight:22}}>{totalFree}</Text>
+              <Text style={{fontSize:9, fontWeight:'900', color:'#22c55e'}}>FREE SEATS</Text>
+            </View>
+          </View>
+          <View style={{flexDirection:'row', gap:8, marginTop:14}}>
+            <View style={styles.headerPill}><Text style={styles.headerPillText}>🟢 {onlineCount} online</Text></View>
+            <View style={styles.headerPill}><Text style={styles.headerPillText}>⭐ Karma {karma}</Text></View>
+            <View style={styles.headerPill}><Text style={styles.headerPillText}>{favLib ? `⭐ ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text></View>
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{backgroundColor:'#f59e0b', padding:10, borderRadius:10, marginTop:10, flexDirection:'row', justifyContent:'space-between'}}>
-          <Text style={{color:'white', fontWeight:'900'}}>🏆 Leaderboard - Top Reporters</Text>
-          <Text style={{color:'white', fontWeight:'900'}}>{myRank ? `You #${myRank}` : `Karma ${karma}`} →</Text>
-        </TouchableOpacity>
-        {/* V24 MY ACTIVITY BUTTON */}
-        <TouchableOpacity onPress={() => setShowActivity(true)} style={{backgroundColor:'#0f172a', padding:10, borderRadius:10, marginTop:8, flexDirection:'row', justifyContent:'space-between'}}>
-          <Text style={{color:'white', fontWeight:'900'}}>📋 My Activity - Queue, Reports, Leaves, Purchases</Text>
-          <Text style={{color:'white', fontWeight:'900'}}>→</Text>
-        </TouchableOpacity>
+        <View style={{flexDirection:'row', gap:10, marginTop:14}}>
+          <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{flex:1, backgroundColor:'#f59e0b', padding:14, borderRadius:16, flexDirection:'row', alignItems:'center', justifyContent:'space-between'}}>
+            <View><Text style={{fontSize:18}}>🏆</Text><Text style={{color:'white', fontWeight:'900', fontSize:13, marginTop:2}}>Leaderboard</Text><Text style={{color:'rgba(255,255,255,0.9)', fontSize:11}}>Top reporters</Text></View>
+            <Text style={{color:'white', fontWeight:'900', fontSize:12, backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:5, borderRadius:10}}>{myRank ? `#${myRank}` : `${karma} pts`} →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowActivity(true)} style={{flex:1, backgroundColor:'white', padding:14, borderRadius:16, flexDirection:'row', alignItems:'center', justifyContent:'space-between'}}>
+            <View><Text style={{fontSize:18}}>📋</Text><Text style={{color:'#0f172a', fontWeight:'900', fontSize:13, marginTop:2}}>My Activity</Text><Text style={{color:'#64748b', fontSize:11}}>Queue • Reports • Leaves</Text></View>
+            <Text style={{color:'#0f172a', fontWeight:'900', fontSize:12, backgroundColor:'#f1f5f9', paddingHorizontal:8, paddingVertical:5, borderRadius:10}}>{watchlist.length} watching →</Text>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
+
       {mySeatTimer && !showStillThere && (
-        <View style={{marginHorizontal:14, marginTop:10, backgroundColor:'#dbeafe', padding:12, borderRadius:14, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
-          <Text style={{fontWeight:'900', fontSize:13, flex:1}}>⏳ Seated at {mySeatTimer.libraryName} • Expires in {Math.max(0, Math.ceil((mySeatTimer.expiresAt - Date.now())/60000))} mins</Text>
-          <TouchableOpacity onPress={()=>{ setMySeatTimer(prev=> prev ? {...prev, expiresAt: Date.now()} : prev); setShowStillThere(true); }} style={{backgroundColor:'#2563eb', paddingHorizontal:10, paddingVertical:6, borderRadius:8}}><Text style={{color:'white', fontWeight:'900', fontSize:11}}>Check Now</Text></TouchableOpacity>
+        <View style={{marginHorizontal:14, marginTop:12, backgroundColor:'#dbeafe', padding:14, borderRadius:16, flexDirection:'row', justifyContent:'space-between', alignItems:'center', borderWidth:1, borderColor:'#bfdbfe'}}>
+          <View style={{flex:1}}><Text style={{fontWeight:'900', fontSize:13}}>⏳ Seated at {mySeatTimer.libraryName}</Text><Text style={{color:'#1e40af', fontSize:11, marginTop:2}}>Expires in {Math.max(0, Math.ceil((mySeatTimer.expiresAt - Date.now())/60000))} mins</Text></View>
+          <TouchableOpacity onPress={()=>{ setMySeatTimer(prev=> prev ? {...prev, expiresAt: Date.now()} : prev); setShowStillThere(true); }} style={{backgroundColor:'#2563eb', paddingHorizontal:12, paddingVertical:8, borderRadius:10}}><Text style={{color:'white', fontWeight:'900', fontSize:11}}>Check Now</Text></TouchableOpacity>
         </View>
       )}
-      <View style={styles.searchTable}><Text style={{fontSize:16}}>🔍</Text><TextInput placeholder="Search library, e.g. Prempeh, Engineering..." value={search} onChangeText={setSearch} style={{flex:1, marginLeft:10, fontSize:14}} placeholderTextColor="#94a3b8" /></View>
-      {favLib && (<View style={{marginHorizontal:14, marginTop:10, backgroundColor:'#dcfce7', padding:12, borderRadius:14}}><Text style={{fontWeight:'900'}}>⭐ My Library: {favLib.name} - {getEffectiveData(favLib).seats} FREE • {formatTimeAgo(getEffectiveData(favLib).lastVerified)}</Text><TouchableOpacity onPress={()=>{ setSelectedLib(favLib); setDetailLib(favLib); }} style={{backgroundColor:'#0f172a', padding:10, borderRadius:10, marginTop:8}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Open My Library</Text></TouchableOpacity></View>)}
-      {myAssignments.length > 0 && (<View style={{marginHorizontal:14, marginTop:10, borderRadius:14, overflow:'hidden'}}><LinearGradient colors={['#22c55e','#16a34a']} style={{padding:12}}><Text style={{color:'white', fontWeight:'900', fontSize:13}}>YOUR TURN! {myAssignments[0].libraryName} Block {myAssignments[0].block} Row {myAssignments[0].row} • Go in 15 min!</Text><View style={{flexDirection:'row', gap:8, marginTop:10}}><TouchableOpacity onPress={()=>handleClaimAssignment(myAssignments[0])} style={{flex:1, backgroundColor:'white', padding:10, borderRadius:10}}><Text style={{textAlign:'center', fontWeight:'900', color:'#15803d'}}>Claim Seat</Text></TouchableOpacity><TouchableOpacity onPress={()=>handleDeclineAssignment(myAssignments[0])} style={{flex:1, backgroundColor:'rgba(0,0,0,0.25)', padding:10, borderRadius:10}}><Text style={{textAlign:'center', fontWeight:'800', color:'white'}}>Decline</Text></TouchableOpacity></View></LinearGradient></View>)}
+      <View style={styles.searchTable}><Text style={{fontSize:16}}>🔍</Text><TextInput placeholder="Search library, e.g. Prempeh, Engineering..." value={search} onChangeText={setSearch} style={{flex:1, marginLeft:10, fontSize:14}} placeholderTextColor="#94a3b8" />{search ? <TouchableOpacity onPress={()=>setSearch('')}><Text style={{fontWeight:'900', color:'#94a3b8'}}>✕</Text></TouchableOpacity> : null}</View>
+      <Text style={{marginHorizontal:16, marginTop:12, fontWeight:'900', fontSize:13, color:'#0f172a'}}>Libraries near you • {filteredLibraries.length} libraries</Text>
+      {favLib && (<View style={{marginHorizontal:14, marginTop:10, backgroundColor:'#dcfce7', padding:14, borderRadius:16, borderWidth:1, borderColor:'#bbf7d0'}}><Text style={{fontWeight:'900'}}>⭐ My Library: {favLib.name}</Text><Text style={{color:'#15803d', fontSize:12, marginTop:2}}>{getEffectiveData(favLib).seats} FREE • {formatTimeAgo(getEffectiveData(favLib).lastVerified)}</Text><TouchableOpacity onPress={()=>{ setSelectedLib(favLib); setDetailLib(favLib); }} style={{backgroundColor:'#0f172a', padding:11, borderRadius:11, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Open My Library →</Text></TouchableOpacity></View>)}
+      {myAssignments.length > 0 && (<View style={{marginHorizontal:14, marginTop:12, borderRadius:16, overflow:'hidden'}}><LinearGradient colors={['#22c55e','#16a34a']} style={{padding:14}}><Text style={{color:'white', fontWeight:'900', fontSize:13}}>🎉 YOUR TURN!</Text><Text style={{color:'white', fontSize:12, marginTop:4}}>{myAssignments[0].libraryName} • Block {myAssignments[0].block} Row {myAssignments[0].row} • Go in 15 min!</Text><View style={{flexDirection:'row', gap:8, marginTop:12}}><TouchableOpacity onPress={()=>handleClaimAssignment(myAssignments[0])} style={{flex:1, backgroundColor:'white', padding:11, borderRadius:11}}><Text style={{textAlign:'center', fontWeight:'900', color:'#15803d'}}>Claim Seat</Text></TouchableOpacity><TouchableOpacity onPress={()=>handleDeclineAssignment(myAssignments[0])} style={{flex:1, backgroundColor:'rgba(0,0,0,0.25)', padding:11, borderRadius:11}}><Text style={{textAlign:'center', fontWeight:'800', color:'white'}}>Decline</Text></TouchableOpacity></View></LinearGradient></View>)}
       {filteredLibraries.length === 0 && (
-        <View style={{marginHorizontal:14, marginTop:30, backgroundColor:'white', padding:20, borderRadius:16, alignItems:'center'}}>
-          <Text style={{fontWeight:'900', fontSize:16, textAlign:'center'}}>No libraries yet</Text>
-          <Text style={{color:'#64748b', textAlign:'center', marginTop:8, fontSize:13}}>Add your first library in Firestore or use Admin Seed.</Text>
+        <View style={{marginHorizontal:14, marginTop:20, backgroundColor:'white', padding:22, borderRadius:20, alignItems:'center'}}>
+          <Text style={{fontSize:32}}>📚</Text>
+          <Text style={{fontWeight:'900', fontSize:16, textAlign:'center', marginTop:8}}>No libraries yet</Text>
+          <Text style={{color:'#64748b', textAlign:'center', marginTop:6, fontSize:13}}>Add your first library in Firestore or use Admin Seed.</Text>
         </View>
       )}
-      <FlatList data={filteredLibraries} keyExtractor={item => item.id} contentContainerStyle={{paddingBottom:110, paddingTop:8}}
+      <FlatList data={filteredLibraries} keyExtractor={item => item.id} contentContainerStyle={{paddingBottom:120, paddingTop:10}}
         renderItem={({ item }) => {
           const eff = getEffectiveData(item); const real = getRealTimeSeats({lastVerified: eff.lastVerified}); const isGhost = real.state==="GHOST" && eff.seats===0; const isFree = eff.seats > 0; const walkM = getWalkingDistanceMeters(userNearestLib, item.id); const walkT = getWalkingTimeMins(walkM); const occupancy = Math.min(100, Math.round(((item.totalSeats - eff.seats) / item.totalSeats) * 100)); const q = queueMap[item.id];
           return (
-            <TouchableOpacity activeOpacity={0.85} onPress={() => { setSelectedLib(item); setDetailLib(item); setShowReportInput(false); }} style={[styles.modernCard, item.id===favLibId && {borderColor:'#22c55e', borderWidth:2}]}>
-              <View style={{flexDirection:'row', justifyContent:'space-between'}}><View style={{flex:1}}><View style={{flexDirection:'row', alignItems:'center', gap:8}}><View style={[styles.statusDot, {backgroundColor: isGhost?'#cbd5e1': isFree?'#22c55e':'#ef4444'}]} /><Text style={styles.cardTitle} numberOfLines={1}>{item.id===favLibId ? '⭐ ' : ''}{item.name}{item.isRealData ? ' ✅' : ' ⚠️ PLACEHOLDER'}</Text></View><Text style={styles.cardSub}>{item.totalSeats} total • {item.block} • {formatTimeAgo(eff.lastVerified)}</Text></View><View style={[styles.badgeModern, {backgroundColor: isGhost?'#f1f5f9': isFree?'#dcfce7':'#fee2e2'}]}><Text style={[styles.badgeText, {color: isGhost?'#64748b': isFree?'#15803d':'#b91c1c'}]}>{isGhost?'NO DATA': isFree?`${eff.seats} FREE`:'FULL'}</Text></View></View>
-              <View style={styles.occupancyBarBg}><View style={[styles.occupancyBarFill, {width: `${occupancy}%`, backgroundColor: isFree?'#22c55e':'#ef4444'}]} /></View>
-              <View style={{flexDirection:'row', justifyContent:'space-between', marginTop:8}}><Text style={styles.metaText}>{occupancy}% full • {watchCounts[item.id]||0} watching</Text><Text style={styles.walkText}>🚶 {walkT} min • {walkM}m</Text></View>
-              {q && <View style={styles.queueChip}><Text style={styles.queueText}>You #{q.pos} • ~{q.est} min</Text></View>}
-              <TouchableOpacity onPress={()=>setFavourite(item.id)} style={{marginTop:8}}><Text style={{fontSize:11, fontWeight:'800', color:'#22c55e'}}>{item.id===favLibId ? '⭐ My Library' : '☆ Set as My Library'}</Text></TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.92} onPress={() => { setSelectedLib(item); setDetailLib(item); setShowReportInput(false); }} style={[styles.modernCard, item.id===favLibId && {borderColor:'#22c55e', borderWidth:2}]}>
+              <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start'}}><View style={{flex:1, paddingRight:10}}><View style={{flexDirection:'row', alignItems:'center', gap:8}}><View style={[styles.statusDot, {backgroundColor: isGhost?'#cbd5e1': isFree?'#22c55e':'#ef4444'}]} /><Text style={styles.cardTitle} numberOfLines={1}>{item.id===favLibId ? '⭐ ' : ''}{item.name}</Text></View><Text style={{fontSize:11, color:'#64748b', marginTop:4}}>{item.isRealData ? '✅ Verified' : '⚠️ Placeholder'} • {item.totalSeats} total • {item.block}</Text><Text style={{fontSize:11, color:'#94a3b8', marginTop:2}}>Updated {formatTimeAgo(eff.lastVerified)}</Text></View><View style={[styles.badgeModern, {backgroundColor: isGhost?'#f1f5f9': isFree?'#dcfce7':'#fee2e2'}]}><Text style={[styles.badgeText, {color: isGhost?'#64748b': isFree?'#15803d':'#b91c1c'}]}>{isGhost?'NO DATA': isFree?`${eff.seats} FREE`:'FULL'}</Text></View></View>
+              <View style={styles.occupancyBarBg}><View style={[styles.occupancyBarFill, {width: `${occupancy}%`, backgroundColor: occupancy>85?'#ef4444': occupancy>60?'#f59e0b':'#22c55e'}]} /></View>
+              <View style={{flexDirection:'row', justifyContent:'space-between', marginTop:10, alignItems:'center'}}><Text style={styles.metaText}>{occupancy}% full • 👀 {watchCounts[item.id]||0} watching</Text><View style={{backgroundColor:'#f1f5f9', paddingHorizontal:9, paddingVertical:5, borderRadius:10}}><Text style={styles.walkText}>🚶 {walkT} min • {walkM}m</Text></View></View>
+              {q && <View style={styles.queueChip}><Text style={styles.queueText}>🎯 You #{q.pos} • ~{q.est} min • In Queue</Text></View>}
+              <TouchableOpacity onPress={()=>setFavourite(item.id)} style={{marginTop:10}}><Text style={{fontSize:12, fontWeight:'800', color: item.id===favLibId ? '#22c55e' : '#64748b'}}>{item.id===favLibId ? '⭐ My Library' : '☆ Set as My Library'}</Text></TouchableOpacity>
             </TouchableOpacity>
           );
         }} />
-      {showImpactPop && (<View style={styles.impactPop}><Text style={{color:'white', fontWeight:'900', textAlign:'center'}}>{impactText}</Text></View>)}
+      {showImpactPop && (<View style={styles.impactPop}><Text style={{color:'white', fontWeight:'900', textAlign:'center'}}>🎉 {impactText}</Text></View>)}
       <Modal visible={!!detailLib} transparent animationType="slide" onRequestClose={()=>setDetailLib(null)}>
-        <View style={{flex:1, backgroundColor:'rgba(15,23,42,0.55)', justifyContent:'flex-end'}}><View style={styles.bottomSheet}>{detailLib && (<><View style={styles.handle} /><Text style={{fontSize:19, fontWeight:'900', textAlign:'center', color:'#0f172a'}}>{detailLib.name}</Text><Text style={{textAlign:'center', color:'#64748b', marginTop:6, fontSize:13}}>{getEffectiveData(detailLib).seats} / {detailLib.totalSeats} free • {detailLib.block}</Text>
+        <View style={{flex:1, backgroundColor:'rgba(15,23,42,0.55)', justifyContent:'flex-end'}}><View style={styles.bottomSheet}>{detailLib && (<><View style={styles.handle} /><Text style={{fontSize:20, fontWeight:'900', textAlign:'center', color:'#0f172a'}}>{detailLib.name}</Text><Text style={{textAlign:'center', color:'#64748b', marginTop:6, fontSize:13}}>{getEffectiveData(detailLib).seats} / {detailLib.totalSeats} free • {detailLib.block}</Text>
+          <View style={{backgroundColor:'#f8fafc', padding:12, borderRadius:14, marginTop:12, flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontSize:12, fontWeight:'700', color:'#475569'}}>👀 {watchCounts[detailLib.id]||0} watching this library</Text><Text style={{fontSize:12, fontWeight:'700', color:'#475569'}}>Updated {formatTimeAgo(getEffectiveData(detailLib).lastVerified)}</Text></View>
           <View style={styles.actionRow}><TouchableOpacity onPress={()=> { setShowReportInput(!showReportInput); setReportPhoto(null); }} style={[styles.actionPill, {backgroundColor:'#0f172a'}]}><Text style={styles.actionText}>📝 Report</Text></TouchableOpacity><TouchableOpacity disabled={isLeavingAction} onPress={()=> doEnter(detailLib)} style={[styles.actionPill, {backgroundColor:'#2563eb'}]}><Text style={styles.actionText}>{isLeavingAction?'...':'➡️ Enter -1'}</Text></TouchableOpacity></View>
           <View style={styles.actionRow}><TouchableOpacity disabled={isLeavingAction} onPress={()=> handleLeaveSeat(detailLib)} style={[styles.actionPill, {backgroundColor:'#f97316'}]}><Text style={styles.actionText}>{isLeavingAction?'...':'⬆️ Leave +1'}</Text></TouchableOpacity><TouchableOpacity onPress={()=> toggleWatchlist(detailLib)} style={[styles.actionPill, {backgroundColor: watchlist.includes(detailLib.id)? '#22c55e' : '#7c3aed'}]}><Text style={styles.actionText}>{watchlist.includes(detailLib.id)?'✓ In Queue - Tap to Leave':'🔔 Join Queue'}</Text></TouchableOpacity></View>
-          {showReportInput && (<View style={styles.reportBox}><Text style={{fontWeight:'800', fontSize:13}}>How many free seats you see?</Text><TextInput autoFocus placeholder="e.g. 25" value={reportSeats} onChangeText={setReportSeats} keyboardType="numeric" style={styles.inputModern} /><TouchableOpacity onPress={takePhoto} style={[styles.primaryBtn, {backgroundColor: reportPhoto? '#22c55e':'#f59e0b', marginTop:8}]}><Text style={styles.primaryBtnText}>{reportPhoto?"Photo OK ✓":"📸 Take LIVE Photo - Required"}</Text></TouchableOpacity><View style={styles.actionRow}><TouchableOpacity onPress={()=>setShowReportInput(false)} style={[styles.actionPill, {backgroundColor:'#f1f5f9'}]}><Text style={[styles.actionText, {color:'#0f172a'}]}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={isSubmittingReport} onPress={submitReport} style={[styles.actionPill, {backgroundColor:'#0f172a'}]}><Text style={styles.actionText}>{isSubmittingReport?'Uploading...':'Submit'}</Text></TouchableOpacity></View></View>)}
+          {showReportInput && (<View style={styles.reportBox}><Text style={{fontWeight:'900', fontSize:14}}>How many free seats do you see?</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>Count empty chairs and take a live photo</Text><TextInput autoFocus placeholder="e.g. 25" value={reportSeats} onChangeText={setReportSeats} keyboardType="numeric" style={[styles.inputModern, {fontSize:18, fontWeight:'800', textAlign:'center'}]} /><TouchableOpacity onPress={takePhoto} style={[styles.primaryBtn, {backgroundColor: reportPhoto? '#22c55e':'#f59e0b', marginTop:8}]}><Text style={styles.primaryBtnText}>{reportPhoto?"Photo OK ✓ Tap Submit":"📸 Take LIVE Photo - Required"}</Text></TouchableOpacity><View style={styles.actionRow}><TouchableOpacity onPress={()=>setShowReportInput(false)} style={[styles.actionPill, {backgroundColor:'#f1f5f9'}]}><Text style={[styles.actionText, {color:'#0f172a'}]}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={isSubmittingReport} onPress={submitReport} style={[styles.actionPill, {backgroundColor:'#0f172a'}]}><Text style={styles.actionText}>{isSubmittingReport?'Uploading...':'Submit ✓'}</Text></TouchableOpacity></View></View>)}
         </>)}<TouchableOpacity onPress={()=>setDetailLib(null)} style={styles.closeBtn}><Text style={{textAlign:'center', fontWeight:'700', color:'#475569'}}>Close</Text></TouchableOpacity></View></View>
       </Modal>
       <Modal visible={showStillThere} transparent animationType="slide" onRequestClose={()=>{}}>
         <View style={{flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'center', padding:20}}>
-          <View style={{backgroundColor:'white', padding:20, borderRadius:20}}>
-            <Text style={{fontWeight:'900', fontSize:17, textAlign:'center'}}>Are you still in the library?</Text>
-            <Text style={{textAlign:'center', color:'#64748b', marginTop:8}}>Your 3 hours is up at {mySeatTimer?.libraryName || ''}. If you don't answer in 15 mins, your seat will be freed for someone else.</Text>
-            <Text style={{textAlign:'center', color:'#ef4444', fontWeight:'900', fontSize:22, marginTop:12}}>{Math.floor(stillThereCountdown / 60)}:{String(stillThereCountdown % 60).padStart(2, '0')}</Text>
-            <Text style={{textAlign:'center', color:'#ef4444', fontSize:12, fontWeight:'700'}}>TIME LEFT TO ANSWER</Text>
-            <TouchableOpacity onPress={async () => { const newExp = Timestamp.fromDate(new Date(Date.now() + 3*60*60*1000)); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { expiresAt: newExp }).catch(()=>{}); setMySeatTimer({ libraryId: mySeatTimer.libraryId, libraryName: mySeatTimer.libraryName, expiresAt: newExp.toMillis() }); setShowStillThere(false); }} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:16}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Yes, I'm Still Here +3hrs</Text></TouchableOpacity>
-            <TouchableOpacity onPress={async () => { await updateDoc(doc(db, "libraries", mySeatTimer.libraryId), { availableSeats: increment(1), updatedAt: serverTimestamp() }).catch(()=>{}); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { status: "LEFT" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); }} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>No, I'm Leaving - Free My Seat</Text></TouchableOpacity>
+          <View style={{backgroundColor:'white', padding:22, borderRadius:24}}>
+            <Text style={{fontSize:32, textAlign:'center'}}>🪑</Text>
+            <Text style={{fontWeight:'900', fontSize:18, textAlign:'center', marginTop:8}}>Are you still in the library?</Text>
+            <Text style={{textAlign:'center', color:'#64748b', marginTop:8}}>Your 3 hours is up at {mySeatTimer?.libraryName || ''}. If you don't answer in 15 mins, your seat will be freed.</Text>
+            <Text style={{textAlign:'center', color:'#ef4444', fontWeight:'900', fontSize:28, marginTop:12}}>{Math.floor(stillThereCountdown / 60)}:{String(stillThereCountdown % 60).padStart(2, '0')}</Text>
+            <Text style={{textAlign:'center', color:'#ef4444', fontSize:11, fontWeight:'800'}}>TIME LEFT TO ANSWER</Text>
+            <TouchableOpacity onPress={async () => { const newExp = Timestamp.fromDate(new Date(Date.now() + 3*60*60*1000)); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { expiresAt: newExp }).catch(()=>{}); setMySeatTimer({ libraryId: mySeatTimer.libraryId, libraryName: mySeatTimer.libraryName, expiresAt: newExp.toMillis() }); setShowStillThere(false); }} style={{backgroundColor:'#22c55e', padding:15, borderRadius:14, marginTop:16}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Yes, I'm Still Here +3hrs</Text></TouchableOpacity>
+            <TouchableOpacity onPress={async () => { await updateDoc(doc(db, "libraries", mySeatTimer.libraryId), { availableSeats: increment(1), updatedAt: serverTimestamp() }).catch(()=>{}); await updateDoc(doc(db, "activeSeats", `${user.uid}_${mySeatTimer.libraryId}`), { status: "LEFT" }).catch(()=>{}); setMySeatTimer(null); setShowStillThere(false); }} style={{backgroundColor:'#ef4444', padding:15, borderRadius:14, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>No, I'm Leaving - Free My Seat</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>
       <Modal visible={showPay} animationType="slide" onRequestClose={()=>setShowPay(false)}>
         <View style={{flex:1, paddingTop:50, backgroundColor:'white'}}>
-          <Text style={{textAlign:'center', fontWeight:'900', fontSize:16}}>Get Premium - GHS 1</Text>
-          <Text style={{textAlign:'center', color:'#64748b', marginTop:6, paddingHorizontal:20}}>Pay with Paystack below, then tap "I've Paid" - Admin will verify and turn on Premium. No instant unlock.</Text>
+          <Text style={{textAlign:'center', fontWeight:'900', fontSize:18}}>⭐ Get Premium - GHS 1</Text>
+          <Text style={{textAlign:'center', color:'#64748b', marginTop:6, paddingHorizontal:20}}>Pay with Paystack below, then tap "I've Paid" - Admin will verify and turn on Premium.</Text>
           <View style={{flex:1, marginTop:12}}><WebView source={{ uri: PAYSTACK_SHOP_URL }} style={{flex:1}} /></View>
-          <TouchableOpacity onPress={handlePaidConfirm} style={{backgroundColor:'#22c55e', padding:16, margin:12, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>I've Paid - Request Verification</Text></TouchableOpacity>
-          <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
+          <TouchableOpacity onPress={handlePaidConfirm} style={{backgroundColor:'#22c55e', padding:16, margin:12, borderRadius:14}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>I've Paid - Request Verification</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:14}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
       <Modal visible={showLeaderboard} animationType="slide" onRequestClose={() => setShowLeaderboard(false)}>
         <View style={{flex:1, backgroundColor:'#fff7ed', paddingTop:60, padding:16}}>
-          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center'}}>🏆 KNUST Leaderboard</Text>
+          <Text style={{fontSize:26, textAlign:'center'}}>🏆</Text>
+          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center', marginTop:4}}>KNUST Leaderboard</Text>
           <Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>Most helpful students - real reports only</Text>
-          <View style={{backgroundColor:'#0f172a', padding:14, borderRadius:14, marginTop:16}}><Text style={{color:'white', fontWeight:'900', textAlign:'center'}}>{myRank ? `You are #${myRank}` : `You are not in Top 10 yet`} • Karma {karma} • {totalReportsCount} reports</Text></View>
+          <View style={{backgroundColor:'#0f172a', padding:16, borderRadius:16, marginTop:16, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}><View><Text style={{color:'white', fontWeight:'900'}}>{myRank ? `You are #${myRank}` : `You are not in Top 10 yet`}</Text><Text style={{color:'#cbd5e1', fontSize:12, marginTop:2}}>Keep reporting to climb</Text></View><View style={{backgroundColor:'#f59e0b', paddingHorizontal:10, paddingVertical:6, borderRadius:10}}><Text style={{color:'white', fontWeight:'900'}}>{karma} pts</Text></View></View>
           <FlatList data={leaderboard} keyExtractor={item => item.id} contentContainerStyle={{paddingTop:16, paddingBottom:40}}
             renderItem={({item}) => (
-              <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'white', padding:14, borderRadius:14, marginBottom:10, borderWidth: item.id === user?.uid ? 2 : 0, borderColor: item.id === user?.uid ? '#f59e0b' : 'transparent'}}>
-                <Text style={{fontSize:18, fontWeight:'900', width:35}}>{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`}</Text>
-                <View style={{flex:1}}>
+              <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'white', padding:14, borderRadius:16, marginBottom:10, borderWidth: item.id === user?.uid ? 2 : 0, borderColor: item.id === user?.uid ? '#f59e0b' : 'transparent', shadowColor:'#000', shadowOpacity:0.04, shadowRadius:8, elevation:2}}>
+                <View style={{width:40, height:40, borderRadius:20, backgroundColor: item.rank===1?'#fef3c7': item.rank===2?'#f1f5f9': item.rank===3?'#ffedd5':'#f8fafc', alignItems:'center', justifyContent:'center'}}><Text style={{fontSize:16, fontWeight:'900'}}>{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`}</Text></View>
+                <View style={{flex:1, marginLeft:10}}>
                   <Text style={{fontWeight:'900', fontSize:14}}>{item.email?.split('@')[0] || 'Student'}{item.id === user?.uid ? ' (You)' : ''}</Text>
-                  <Text style={{color:'#64748b', fontSize:12}}>{item.karma || 100} karma • {item.isPremium ? '⭐ Premium' : 'Free'}</Text>
+                  <Text style={{color:'#64748b', fontSize:12}}>{item.isPremium ? '⭐ Premium • ' : ''}{item.karma || 100} karma</Text>
                 </View>
                 <Text style={{fontWeight:'900', color:'#f59e0b'}}>{item.karma || 100} pts</Text>
               </View>
             )}
           />
-          <TouchableOpacity onPress={() => setShowLeaderboard(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:12, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowLeaderboard(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      {/* V24 MY ACTIVITY + VQ MODAL */}
       <Modal visible={showActivity} animationType="slide" onRequestClose={() => setShowActivity(false)}>
         <View style={{flex:1, backgroundColor:'#f8fafc', paddingTop:60, padding:16}}>
-          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center'}}>📋 My Activity</Text>
+          <Text style={{fontSize:26, textAlign:'center'}}>📋</Text>
+          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center', marginTop:4}}>My Activity</Text>
           <Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>Your queue, reports, leaves & purchases</Text>
-          <View style={{flexDirection:'row', flexWrap:'wrap', gap:8, marginTop:16}}>
-            <TouchableOpacity onPress={() => setActivityTab('queue')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='queue' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='queue' ? 'white' : '#0f172a'}}>🔔 My Queue</Text><Text style={{fontSize:11, color: activityTab==='queue' ? 'white' : '#64748b'}}>{watchlist.length} watching</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => setActivityTab('reports')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='reports' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='reports' ? 'white' : '#0f172a'}}>📝 My Reports</Text><Text style={{fontSize:11, color: activityTab==='reports' ? 'white' : '#64748b'}}>{totalReportsCount} reports</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => setActivityTab('leaves')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='leaves' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='leaves' ? 'white' : '#0f172a'}}>⬆️ My Leaves</Text><Text style={{fontSize:11, color: activityTab==='leaves' ? 'white' : '#64748b'}}>{myLeavesList.length} leaves</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => setActivityTab('purchases')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='purchases' ? '#0f172a' : 'white', padding:14, borderRadius:14, alignItems:'center'}}><Text style={{fontWeight:'900', color: activityTab==='purchases' ? 'white' : '#0f172a'}}>💳 My Purchases</Text><Text style={{fontSize:11, color: activityTab==='purchases' ? 'white' : '#64748b'}}>{myPurchasesList.length} purchases</Text></TouchableOpacity>
+          <View style={{flexDirection:'row', flexWrap:'wrap', gap:10, marginTop:16}}>
+            <TouchableOpacity onPress={() => setActivityTab('queue')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='queue' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center', shadowColor:'#000', shadowOpacity:0.05, shadowRadius:8, elevation:2}}><Text style={{fontSize:22}}>🔔</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='queue' ? 'white' : '#0f172a'}}>My Queue</Text><Text style={{fontSize:11, color: activityTab==='queue' ? '#cbd5e1' : '#64748b'}}>{watchlist.length} watching • Tap to see VQ</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActivityTab('reports')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='reports' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center', shadowColor:'#000', shadowOpacity:0.05, shadowRadius:8, elevation:2}}><Text style={{fontSize:22}}>📝</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='reports' ? 'white' : '#0f172a'}}>My Reports</Text><Text style={{fontSize:11, color: activityTab==='reports' ? '#cbd5e1' : '#64748b'}}>{totalReportsCount} reports</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActivityTab('leaves')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='leaves' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center', shadowColor:'#000', shadowOpacity:0.05, shadowRadius:8, elevation:2}}><Text style={{fontSize:22}}>⬆️</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='leaves' ? 'white' : '#0f172a'}}>My Leaves</Text><Text style={{fontSize:11, color: activityTab==='leaves' ? '#cbd5e1' : '#64748b'}}>{myLeavesList.length} leaves</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActivityTab('purchases')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='purchases' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center', shadowColor:'#000', shadowOpacity:0.05, shadowRadius:8, elevation:2}}><Text style={{fontSize:22}}>💳</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='purchases' ? 'white' : '#0f172a'}}>My Purchases</Text><Text style={{fontSize:11, color: activityTab==='purchases' ? '#cbd5e1' : '#64748b'}}>{myPurchasesList.length} purchases</Text></TouchableOpacity>
           </View>
           <ScrollView style={{marginTop:16}} showsVerticalScrollIndicator={false}>
             {activityTab === 'queue' && (
               <View>
-                <Text style={{fontWeight:'900', fontSize:14}}>VQ - Who is watching with you?</Text>
-                {libraries.filter(l => watchlist.includes(l.id)).length === 0 && <Text style={{color:'#64748b', marginTop:8}}>You are not watching any library yet. Join a queue first.</Text>}
+                <Text style={{fontWeight:'900', fontSize:15}}>VQ - Who is watching with you?</Text>
+                <Text style={{color:'#64748b', fontSize:12, marginTop:2}}>Live count - updates when someone joins/leaves</Text>
+                {libraries.filter(l => watchlist.includes(l.id)).length === 0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, marginTop:10, alignItems:'center'}}><Text style={{fontSize:28}}>👀</Text><Text style={{color:'#64748b', marginTop:6, textAlign:'center'}}>You are not watching any library yet.{'\n'}Tap a library and Join Queue first.</Text></View>}
                 {libraries.filter(l => watchlist.includes(l.id)).map(lib => (
-                  <View key={lib.id} style={{backgroundColor:'white', padding:14, borderRadius:14, marginTop:10}}>
-                    <Text style={{fontWeight:'900'}}>{lib.name}</Text>
-                    <Text style={{color:'#64748b', fontSize:12, marginTop:4}}>👀 {watchCounts[lib.id] || 1} people watching this library right now</Text>
-                    <Text style={{color:'#64748b', fontSize:12}}>Your position: {queueMap[lib.id] ? `#${queueMap[lib.id].pos} • ~${queueMap[lib.id].est} min` : 'Watching'}</Text>
-                    <Text style={{fontSize:12, marginTop:4, color:'#15803d'}}>VQ: {watchCounts[lib.id] || 1} students want this library, including you</Text>
+                  <View key={lib.id} style={{backgroundColor:'white', padding:16, borderRadius:18, marginTop:12, borderWidth:1, borderColor:'#dcfce7'}}>
+                    <View style={{flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontWeight:'900', fontSize:15}}>{lib.name}</Text><View style={{backgroundColor:'#dcfce7', paddingHorizontal:9, paddingVertical:5, borderRadius:10}}><Text style={{fontWeight:'900', color:'#15803d', fontSize:12}}>👀 {watchCounts[lib.id] || 1} watching</Text></View></View>
+                    <Text style={{color:'#64748b', fontSize:12, marginTop:8}}>Your position: {queueMap[lib.id] ? `#${queueMap[lib.id].pos} • ~${queueMap[lib.id].est} min` : 'Watching'}</Text>
+                    <Text style={{fontSize:12, marginTop:6, color:'#15803d', fontWeight:'700'}}>VQ: {watchCounts[lib.id] || 1} students want this library, including you</Text>
                   </View>
                 ))}
-                <Text style={{fontWeight:'900', fontSize:14, marginTop:16}}>All Libraries - VQ Count</Text>
+                <Text style={{fontWeight:'900', fontSize:15, marginTop:18}}>All Libraries - VQ Count</Text>
                 {libraries.map(lib => (
-                  <View key={'vq-'+lib.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8, flexDirection:'row', justifyContent:'space-between'}}>
+                  <View key={'vq-'+lib.id} style={{backgroundColor:'white', padding:14, borderRadius:14, marginTop:8, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
                     <Text style={{fontWeight:'700', fontSize:13}}>{lib.name}</Text>
                     <Text style={{fontWeight:'900', color:'#7c3aed'}}>👀 {watchCounts[lib.id] || 0} watching</Text>
                   </View>
@@ -557,23 +581,23 @@ export default function App() {
               </View>
             )}
             {activityTab === 'reports' && (
-              <View>{myReportsList.length===0 && <Text style={{color:'#64748b'}}>No reports yet. Go to a library and report.</Text>}{myReportsList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8}}><Text style={{fontWeight:'900'}}>{r.libraryName} • {r.availableSeats} seats • {r.type}</Text><Text style={{color:'#64748b', fontSize:12}}>{formatTimeAgo(r.createdAt)} • {r.hasPhoto ? '📸 Photo' : 'No photo'}</Text></View>))}</View>
+              <View>{myReportsList.length===0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, alignItems:'center'}}><Text style={{fontSize:28}}>📝</Text><Text style={{color:'#64748b', marginTop:6, textAlign:'center'}}>No reports yet. Go to a library and report.</Text></View>}{myReportsList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginTop:10}}><Text style={{fontWeight:'900'}}>{r.libraryName} • {r.availableSeats} seats • {r.type}</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{formatTimeAgo(r.createdAt)} • {r.hasPhoto ? '📸 Photo' : 'No photo'}</Text></View>))}</View>
             )}
             {activityTab === 'leaves' && (
-              <View>{myLeavesList.length===0 && <Text style={{color:'#64748b'}}>No leaves yet.</Text>}{myLeavesList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8}}><Text style={{fontWeight:'900'}}>{r.libraryName} • Block {r.block} Row {r.row}</Text><Text style={{color:'#64748b', fontSize:12}}>{formatTimeAgo(r.createdAt)} • You left +1 seat</Text></View>))}</View>
+              <View>{myLeavesList.length===0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, alignItems:'center'}}><Text style={{fontSize:28}}>⬆️</Text><Text style={{color:'#64748b', marginTop:6}}>No leaves yet.</Text></View>}{myLeavesList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginTop:10}}><Text style={{fontWeight:'900'}}>{r.libraryName} • Block {r.block} Row {r.row}</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{formatTimeAgo(r.createdAt)} • You left +1 seat</Text></View>))}</View>
             )}
             {activityTab === 'purchases' && (
-              <View>{myPurchasesList.length===0 && <Text style={{color:'#64748b'}}>No purchases yet. You are on FREE plan.</Text>}{myPurchasesList.map(p => (<View key={p.id} style={{backgroundColor:'white', padding:12, borderRadius:12, marginTop:8}}><Text style={{fontWeight:'900'}}>GHS {p.amount} • {p.status}</Text><Text style={{color:'#64748b', fontSize:12}}>{p.libraryName || 'Premium'} • {formatTimeAgo(p.createdAt)}</Text></View>))}</View>
+              <View>{myPurchasesList.length===0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, alignItems:'center'}}><Text style={{fontSize:28}}>💳</Text><Text style={{color:'#64748b', marginTop:6, textAlign:'center'}}>No purchases yet. You are on FREE plan.</Text></View>}{myPurchasesList.map(p => (<View key={p.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginTop:10}}><Text style={{fontWeight:'900'}}>GHS {p.amount} • {p.status}</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{p.libraryName || 'Premium'} • {formatTimeAgo(p.createdAt)}</Text></View>))}</View>
             )}
             <View style={{height:20}} />
           </ScrollView>
-          <TouchableOpacity onPress={() => setShowActivity(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:12, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowActivity(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V24 ACTIVITY + VQ • {onlineCount} online</Text></TouchableOpacity></View>
+      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)} style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}><Text style={{color:'white', fontWeight:'800', fontSize:12}}>👋 Logout</Text><Text style={{color:'#cbd5e1', fontSize:11}}>Karma {karma} • {totalReportsCount} reports • V24 UI • {onlineCount} online</Text></TouchableOpacity></View>
     </View>
   );
 }
 const styles = StyleSheet.create({
-  containerTable: { flex: 1, backgroundColor:'#f8fafc' }, header: { paddingTop:54, paddingBottom:16, paddingHorizontal:16, borderBottomWidth:1, borderColor:'#f1f5f9' }, titleTable: { fontSize:20, fontWeight:'900', color:'#0f172a', letterSpacing:-0.6 }, subHeader: { fontSize:12, color:'#64748b', marginTop:4, fontWeight:'600' }, searchTable: { marginHorizontal:16, marginTop:14, backgroundColor:'white', borderRadius:16, flexDirection:'row', alignItems:'center', paddingHorizontal:16, height:52, borderWidth:1, borderColor:'#e2e8f0' }, modernCard: { backgroundColor:'white', borderRadius:20, padding:16, marginBottom:12, marginHorizontal:14, borderWidth:1, borderColor:'#f1f5f9' }, cardTitle: { fontSize:14.5, fontWeight:'800', color:'#0f172a' }, cardSub: { fontSize:11.5, color:'#64748b', marginTop:3, fontWeight:'500' }, statusDot: { width:10, height:10, borderRadius:5 }, badgeModern: { paddingHorizontal:12, paddingVertical:6, borderRadius:20 }, badgeText: { fontSize:11, fontWeight:'900' }, occupancyBarBg: { height:6, backgroundColor:'#f1f5f9', borderRadius:6, marginTop:12, overflow:'hidden' }, occupancyBarFill: { height:6, borderRadius:6 }, metaText: { fontSize:11, color:'#94a3b8', fontWeight:'600' }, walkText: { fontSize:11, color:'#0f172a', fontWeight:'700' }, queueChip: { marginTop:10, backgroundColor:'#fef9c3', paddingHorizontal:10, paddingVertical:6, borderRadius:10, alignSelf:'flex-start', borderWidth:1, borderColor:'#fde68a' }, queueText: { fontSize:11, fontWeight:'800', color:'#854d0e' }, bottomSheet: { backgroundColor:'white', borderTopLeftRadius:28, borderTopRightRadius:28, padding:20, paddingBottom:28 }, handle: { width:36, height:5, backgroundColor:'#e2e8f0', borderRadius:3, alignSelf:'center', marginBottom:14 }, actionRow: { flexDirection:'row', gap:10, marginTop:12 }, actionPill: { flex:1, paddingVertical:15, borderRadius:14, alignItems:'center' }, actionText: { color:'white', fontWeight:'800', fontSize:13 }, reportBox: { marginTop:14, backgroundColor:'#f8fafc', padding:14, borderRadius:16, borderWidth:1, borderColor:'#e2e8f0' }, closeBtn: { padding:14, marginTop:12, backgroundColor:'#f1f5f9', borderRadius:14 }, bottomBar: { position:'absolute', bottom:14, left:14, right:14, backgroundColor:'#0f172a', padding:12, borderRadius:14 }, containerAuth: { flex:1, paddingTop:80, paddingHorizontal:20 }, titleAuth: { fontSize:32, fontWeight:'900', color:'white', textAlign:'center', letterSpacing:-1 }, subAuth: { color:'#94a3b8', textAlign:'center', marginTop:6, fontWeight:'600' }, authCard: { backgroundColor:'white', borderRadius:24, padding:20, marginTop:30 }, inputModern: { backgroundColor:'#f8fafc', padding:15, borderRadius:14, borderWidth:1, borderColor:'#e2e8f0', fontSize:14, marginTop:8, color:'#0f172a' }, primaryBtn: { backgroundColor:'#0f172a', padding:15, borderRadius:14, marginTop:14 }, primaryBtnText: { color:'white', textAlign:'center', fontWeight:'800' }, secondaryBtn: { backgroundColor:'#f1f5f9', padding:15, borderRadius:14, marginTop:10 }, secondaryBtnText: { color:'#0f172a', textAlign:'center', fontWeight:'700' }, impactPop: { position:'absolute', top:120, alignSelf:'center', left:20, right:20, backgroundColor:'#0f172a', padding:16, borderRadius:16, zIndex:99 }
+  containerTable: { flex: 1, backgroundColor:'#f8fafc' }, header: { paddingTop:54, paddingBottom:18, paddingHorizontal:16, borderBottomLeftRadius:24, borderBottomRightRadius:24 }, headerPill: { backgroundColor:'rgba(255,255,255,0.15)', paddingHorizontal:10, paddingVertical:6, borderRadius:12 }, headerPillText: { color:'white', fontSize:11, fontWeight:'700' }, titleTable: { fontSize:20, fontWeight:'900', color:'#0f172a', letterSpacing:-0.6 }, subHeader: { fontSize:12, color:'#64748b', marginTop:4, fontWeight:'600' }, searchTable: { marginHorizontal:14, marginTop:14, backgroundColor:'white', borderRadius:16, flexDirection:'row', alignItems:'center', paddingHorizontal:16, height:52, borderWidth:1, borderColor:'#e2e8f0', shadowColor:'#000', shadowOpacity:0.04, shadowRadius:8, elevation:2 }, modernCard: { backgroundColor:'white', borderRadius:20, padding:16, marginBottom:12, marginHorizontal:14, borderWidth:1, borderColor:'#f1f5f9', shadowColor:'#000', shadowOpacity:0.05, shadowRadius:10, shadowOffset:{width:0, height:2}, elevation:3 }, cardTitle: { fontSize:15, fontWeight:'900', color:'#0f172a' }, cardSub: { fontSize:11.5, color:'#64748b', marginTop:3, fontWeight:'500' }, statusDot: { width:10, height:10, borderRadius:5 }, badgeModern: { paddingHorizontal:12, paddingVertical:7, borderRadius:20 }, badgeText: { fontSize:11, fontWeight:'900' }, occupancyBarBg: { height:7, backgroundColor:'#f1f5f9', borderRadius:7, marginTop:12, overflow:'hidden' }, occupancyBarFill: { height:7, borderRadius:7 }, metaText: { fontSize:11, color:'#94a3b8', fontWeight:'600' }, walkText: { fontSize:11, color:'#0f172a', fontWeight:'700' }, queueChip: { marginTop:10, backgroundColor:'#fef9c3', paddingHorizontal:10, paddingVertical:7, borderRadius:10, alignSelf:'flex-start', borderWidth:1, borderColor:'#fde68a' }, queueText: { fontSize:11, fontWeight:'800', color:'#854d0e' }, bottomSheet: { backgroundColor:'white', borderTopLeftRadius:28, borderTopRightRadius:28, padding:20, paddingBottom:28 }, handle: { width:36, height:5, backgroundColor:'#e2e8f0', borderRadius:3, alignSelf:'center', marginBottom:14 }, actionRow: { flexDirection:'row', gap:10, marginTop:12 }, actionPill: { flex:1, paddingVertical:16, borderRadius:14, alignItems:'center' }, actionText: { color:'white', fontWeight:'800', fontSize:13 }, reportBox: { marginTop:14, backgroundColor:'#f8fafc', padding:16, borderRadius:18, borderWidth:1, borderColor:'#e2e8f0' }, closeBtn: { padding:14, marginTop:12, backgroundColor:'#f1f5f9', borderRadius:14 }, bottomBar: { position:'absolute', bottom:14, left:14, right:14, backgroundColor:'#0f172a', padding:14, borderRadius:16, shadowColor:'#000', shadowOpacity:0.2, shadowRadius:12, elevation:6 }, containerAuth: { flex:1, paddingTop:70, paddingHorizontal:20 }, titleAuth: { fontSize:36, fontWeight:'900', color:'white', textAlign:'center', letterSpacing:-1 }, subAuth: { color:'#cbd5e1', textAlign:'center', marginTop:6, fontWeight:'600' }, authCard: { backgroundColor:'white', borderRadius:24, padding:20, marginTop:24, shadowColor:'#000', shadowOpacity:0.15, shadowRadius:16, elevation:6 }, authPill: { backgroundColor:'rgba(255,255,255,0.15)', paddingHorizontal:12, paddingVertical:7, borderRadius:20 }, inputModern: { backgroundColor:'#f8fafc', padding:15, borderRadius:14, borderWidth:1, borderColor:'#e2e8f0', fontSize:14, marginTop:8, color:'#0f172a' }, primaryBtn: { backgroundColor:'#0f172a', padding:15, borderRadius:14, marginTop:14 }, primaryBtnText: { color:'white', textAlign:'center', fontWeight:'800' }, secondaryBtn: { backgroundColor:'#f1f5f9', padding:15, borderRadius:14, marginTop:10 }, secondaryBtnText: { color:'#0f172a', textAlign:'center', fontWeight:'700' }, impactPop: { position:'absolute', top:120, alignSelf:'center', left:20, right:20, backgroundColor:'#0f172a', padding:16, borderRadius:16, zIndex:99, shadowColor:'#000', shadowOpacity:0.3, shadowRadius:12, elevation:8 }
 });
