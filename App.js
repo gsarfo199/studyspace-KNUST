@@ -1,4 +1,4 @@
- // ===== V24 FINAL UI - Same Logic, Better UI/UX - StudySpace =====
+ // ===== V24 FINAL UI + FIXES - Same Logic - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
@@ -438,7 +438,7 @@ export default function App() {
       <LinearGradient colors={['#0f172a','#1e293b']} style={styles.header}>
         <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.9}>
           <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start'}}>
-            <View>
+            <View style={{flex:1, paddingRight:8}}>
               <Text style={{color:'white', fontSize:22, fontWeight:'900', letterSpacing:-0.5}}>📚 StudySpace</Text>
               <Text style={{color:'#cbd5e1', fontSize:12, marginTop:4}}>KNUST • Find a seat in seconds</Text>
             </View>
@@ -447,20 +447,29 @@ export default function App() {
               <Text style={{fontSize:9, fontWeight:'900', color:'#22c55e'}}>FREE SEATS</Text>
             </View>
           </View>
-          <View style={{flexDirection:'row', gap:8, marginTop:14}}>
+          <View style={{flexDirection:'row', flexWrap:'wrap', gap:6, marginTop:14}}>
             <View style={styles.headerPill}><Text style={styles.headerPillText}>🟢 {onlineCount} online</Text></View>
             <View style={styles.headerPill}><Text style={styles.headerPillText}>⭐ Karma {karma}</Text></View>
-            <View style={styles.headerPill}><Text style={styles.headerPillText}>{favLib ? `⭐ ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text></View>
+            <View style={styles.headerPill}><Text numberOfLines={1} style={styles.headerPillText}>{favLib ? `⭐ ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text></View>
           </View>
         </TouchableOpacity>
-        <View style={{flexDirection:'row', gap:10, marginTop:14}}>
-          <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{flex:1, backgroundColor:'#f59e0b', padding:14, borderRadius:16, flexDirection:'row', alignItems:'center', justifyContent:'space-between'}}>
-            <View><Text style={{fontSize:18}}>🏆</Text><Text style={{color:'white', fontWeight:'900', fontSize:13, marginTop:2}}>Leaderboard</Text><Text style={{color:'rgba(255,255,255,0.9)', fontSize:11}}>Top reporters</Text></View>
-            <Text style={{color:'white', fontWeight:'900', fontSize:12, backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:5, borderRadius:10}}>{myRank ? `#${myRank}` : `${karma} pts`} →</Text>
+        {/* FIXED: badges below, no overflow */}
+        <View style={{flexDirection:'row', gap:8, marginTop:14}}>
+          <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{flex:1, backgroundColor:'#f59e0b', padding:12, borderRadius:16, minWidth:0}}>
+            <Text style={{fontSize:18}}>🏆</Text>
+            <Text numberOfLines={1} style={{color:'white', fontWeight:'900', fontSize:13, marginTop:2}}>Leaderboard</Text>
+            <Text numberOfLines={1} style={{color:'rgba(255,255,255,0.9)', fontSize:11}}>Top reporters</Text>
+            <View style={{alignSelf:'flex-start', backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:4, borderRadius:8, marginTop:6}}>
+              <Text numberOfLines={1} style={{color:'white', fontWeight:'900', fontSize:11}}>{myRank ? `#${myRank}` : `${karma} pts`}</Text>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowActivity(true)} style={{flex:1, backgroundColor:'white', padding:14, borderRadius:16, flexDirection:'row', alignItems:'center', justifyContent:'space-between'}}>
-            <View><Text style={{fontSize:18}}>📋</Text><Text style={{color:'#0f172a', fontWeight:'900', fontSize:13, marginTop:2}}>My Activity</Text><Text style={{color:'#64748b', fontSize:11}}>Queue • Reports • Leaves</Text></View>
-            <Text style={{color:'#0f172a', fontWeight:'900', fontSize:12, backgroundColor:'#f1f5f9', paddingHorizontal:8, paddingVertical:5, borderRadius:10}}>{watchlist.length} watching →</Text>
+          <TouchableOpacity onPress={() => setShowActivity(true)} style={{flex:1, backgroundColor:'white', padding:12, borderRadius:16, minWidth:0}}>
+            <Text style={{fontSize:18}}>📋</Text>
+            <Text numberOfLines={1} style={{color:'#0f172a', fontWeight:'900', fontSize:13, marginTop:2}}>My Activity</Text>
+            <Text numberOfLines={1} style={{color:'#64748b', fontSize:11}}>Queue • Reports • Leaves</Text>
+            <View style={{alignSelf:'flex-start', backgroundColor:'#f1f5f9', paddingHorizontal:8, paddingVertical:4, borderRadius:8, marginTop:6}}>
+              <Text numberOfLines={1} style={{color:'#0f172a', fontWeight:'900', fontSize:11}}>{watchlist.length} watching</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -594,7 +603,12 @@ export default function App() {
           <TouchableOpacity onPress={() => setShowActivity(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)} style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}><Text style={{color:'white', fontWeight:'800', fontSize:12}}>👋 Logout</Text><Text style={{color:'#cbd5e1', fontSize:11}}>Karma {karma} • {totalReportsCount} reports • V24 UI • {onlineCount} online</Text></TouchableOpacity></View>
+      {/* FIXED: Bottom bar shows ONLY Logout */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity onPress={()=>signOut(auth)} style={{alignItems:'center', paddingVertical:2}}>
+          <Text style={{color:'white', fontWeight:'900', fontSize:14, textAlign:'center'}}>👋 Logout</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
