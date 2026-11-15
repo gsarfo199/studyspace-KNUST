@@ -1,4 +1,4 @@
- // ===== V21 FINAL - V20 + Firestore-First GPS + Seat Timer - StudySpace =====
+ // ===== V22 FINAL - V21 + Leaderboard - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
@@ -29,11 +29,8 @@ async function velocityCheck(newPos){ if(!lastPosCache) { lastPosCache = { lat: 
 const INDOOR_DIRECTIONS = { "prempeh": { "A": "Ground Floor, Right wing, near entrance", "B": "1st Floor, Left wing, quiet zone", "C": "2nd Floor, Left wing, Row near window" }, "default": { "A": "Ground Floor, Block A", "B": "First Floor, Block B, quiet zone", "C": "Second Floor, Block C, near window" } };
 function getIndoorDirection(libraryId, block, row) { const libMap = INDOOR_DIRECTIONS[libraryId] || INDOOR_DIRECTIONS["default"]; const blockDir = libMap[block] || libMap["A"]; return `${blockDir}, Row ${row}`; }
 
-// ===== V21: THESE ARE PLACEHOLDERS ONLY - REAL DATA COMES FROM FIRESTORE =====
-// DO NOT TRUST THESE. After tomorrow, Firestore will override all of them.
 const LIBRARY_COORDINATES = { "prempeh": { latitude: 6.67493, longitude: -1.57123 }, "engineering": { latitude: 6.67455, longitude: -1.56985 }, "science": { latitude: 6.67715, longitude: -1.57015 }, "architecture": { latitude: 6.67685, longitude: -1.57255 }, "art": { latitude: 6.67620, longitude: -1.57310 }, "law": { latitude: 6.67405, longitude: -1.57305 }, "business": { latitude: 6.67380, longitude: -1.57220 }, "pharmacy": { latitude: 6.67490, longitude: -1.56850 }, "agriculture": { latitude: 6.67580, longitude: -1.56890 }, "health": { latitude: 6.67510, longitude: -1.56780 }, "humanities": { latitude: 6.67320, longitude: -1.57280 }, "idl": { latitude: 6.67290, longitude: -1.57150 }, "forestry": { latitude: 6.67590, longitude: -1.56810 }, "grinds": { latitude: 6.67420, longitude: -1.57180 }, };
 
-// V21 HELPER: Get coords from Firestore first, fallback to placeholder
 function getLibCoords(lib) {
   if (lib && lib.latitude && lib.longitude) return { latitude: lib.latitude, longitude: lib.longitude };
   const fb = LIBRARY_COORDINATES[lib?.id] || { latitude: 6.67493, longitude: -1.57123 };
@@ -78,7 +75,6 @@ function AdminPanel({ onClose, user }) {
   const doSeed = async () => {
     const n = Number(seedSeats); if (isNaN(n)) return Alert.alert("Enter number");
     const total = Number(seedTotal) || 200;
-    // V21: Use typed Lat/Lng if provided, else fallback placeholder
     const lat = Number(seedLat) || LIBRARY_COORDINATES[seedLib]?.latitude || 6.67493;
     const lng = Number(seedLng) || LIBRARY_COORDINATES[seedLib]?.longitude || -1.57123;
     const libName = seedName || seedLib;
@@ -131,6 +127,10 @@ export default function App() {
   const [mySeatTimer, setMySeatTimer] = useState(null);
   const [showStillThere, setShowStillThere] = useState(false);
   const [stillThereCountdown, setStillThereCountdown] = useState(15*60);
+  // ===== V22 LEADERBOARD STATE =====
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [myRank, setMyRank] = useState(null);
 
   const handleTitlePress = async () => { const now = Date.now(); if (now - lastTapRef.current > 2000) { setTapCount(1); } else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (!user) return; try { const adminSnap = await getDoc(doc(db, "admins", user.uid)); if (adminSnap.exists() && adminSnap.data().active === true) setShowAdmin(true); } catch(e){} } } lastTapRef.current = now; };
 
@@ -183,7 +183,6 @@ export default function App() {
           totalSeats: data.totalSeats ?? 200,
           availableSeats: data.availableSeats ?? 0,
           block: data.block || (data.freeBlock ? `Block ${data.freeBlock} Row ${data.freeRow || 1}` : "Block A Row 1-5"),
-          // V21: Firestore lat/lng wins, fallback is placeholder
           latitude: data.latitude ?? coord.latitude ?? 6.67493,
           longitude: data.longitude ?? coord.longitude ?? -1.57123,
           isRealData: data.isRealData || false,
@@ -212,6 +211,19 @@ export default function App() {
     return ()=>unsub();
   }, [user]);
 
+  // ===== V22 LEADERBOARD LISTENER =====
+  useEffect(() => {
+    if(!user) return;
+    const unsub = onSnapshot(query(collection(db, "users"), orderBy("karma", "desc"), limit(10)), s => {
+      const list = s.docs.map((d, i) => ({ id: d.id, rank: i+1, ...d.data() }));
+      setLeaderboard(list);
+      const myIndex = list.findIndex(u => u.id === user.uid);
+      if(myIndex !== -1) setMyRank(myIndex + 1);
+      else setMyRank(null);
+    }, (e) => { console.log("leaderboard error:", e.message); });
+    return () => unsub();
+  }, [user]);
+
   useEffect(() => {
     let unsubs = [];
     let unsubAuth = onAuthStateChanged(auth, async u=>{
@@ -237,7 +249,6 @@ export default function App() {
     Alert.alert("My Library set", "App will open here next time like WhatsApp opens to chats");
   };
 
-  // ===== V21 FIXED: verifyInsideLibrary now uses Firestore coords first =====
   const verifyInsideLibrary = async (reportedLib) => {
     if(Platform.OS === 'web' ||!Location) return { allowed: true, distance: 0, accuracy: 0 };
     try {
@@ -247,7 +258,6 @@ export default function App() {
       if (await checkAndroidMockNative(pos)) { Alert.alert("Fake GPS detected"); return { allowed: false, distance: 999, accuracy: 999 }; }
       if (await velocityCheck(pos)) { Alert.alert("Teleport detected"); return { allowed: false, distance: 999, accuracy: 999 }; }
       let dist = 0;
-      // V21: Firestore first!
       const coords = getLibCoords(reportedLib);
       const lat = coords.latitude; const lng = coords.longitude;
       if (lat && lng) dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, lat, lng);
@@ -344,14 +354,15 @@ export default function App() {
       const check = await verifyInsideLibrary(target); if(!check.allowed){ setIsSubmittingReport(false); return; }
       if (photoTakenAt && (Date.now() - photoTakenAt > PHOTO_MAX_AGE_MS)){ Alert.alert("Photo too old"); setIsSubmittingReport(false); return; }
       if (!photoLocation) { Alert.alert("Photo location missing", "Turn on location for camera. Retake photo."); setIsSubmittingReport(false); return; }
-      // V21: Photo distance now uses Firestore coords via getLibCoords
       if (photoLocation && target.latitude && target.longitude){ const photoDist = getDistanceMeters(photoLocation.lat, photoLocation.lng, target.latitude, target.longitude); if(photoDist > PHOTO_MAX_DISTANCE_M){ Alert.alert(`Photo taken ${Math.round(photoDist)}m away`); setIsSubmittingReport(false); return; } }
       if (photoLocation && photoLocation.accuracy > 100){ Alert.alert(`Photo GPS too weak ${Math.round(photoLocation.accuracy)}m`); setIsSubmittingReport(false); return; }
       const consensusSeats = await getConsensusSeats(target.id, seatsNum); const statusFromSeats = getStatusFromSeats(consensusSeats, target.totalSeats);
       let photoUrl = null; if(reportPhoto && reportPhoto.base64){ try{ const fileName = `reports/${target.id}/${user.uid}_${Date.now()}.jpg`; const storageRef = ref(storage, fileName); await uploadString(storageRef, reportPhoto.base64, 'base64', { contentType: 'image/jpeg' }); photoUrl = await getDownloadURL(storageRef); }catch(e){ photoUrl = null; } }
       await addDoc(collection(db, "reports"), { libraryId: target.id, libraryName: target.name, availableSeats: seatsNum, consensusSeats, status: statusFromSeats, userId: user?.uid, deviceId: await getMyDeviceId(), distance: check.distance, accuracy: check.accuracy, createdAt: serverTimestamp(), hasPhoto:true, photoUrl: photoUrl, confirmations: [], disputes: [], trustScore, karma, type: 'REPORT' });
       await setDoc(doc(db,"libraries", target.id), { availableSeats: consensusSeats, confirmedStatus: statusFromSeats, lastVerified: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-      setReportSeats(''); setReportPhoto(null); setShowReportInput(false); setDetailLib(null); setImpactText(`You helped! ${consensusSeats} seats`); setShowImpactPop(true); setTimeout(()=>setShowImpactPop(false),3000);
+      // V22: Reward karma for real report - leaderboard moves
+      await updateDoc(doc(db, "users", user.uid), { karma: increment(10) }).catch(()=>{});
+      setReportSeats(''); setReportPhoto(null); setShowReportInput(false); setDetailLib(null); setImpactText(`You helped! ${consensusSeats} seats • +10 Karma`); setShowImpactPop(true); setTimeout(()=>setShowImpactPop(false),3000);
     } catch (e) { Alert.alert(e.message); } finally { setIsSubmittingReport(false); }
   };
   const getEffectiveData = (lib) => {
@@ -391,6 +402,11 @@ export default function App() {
         <TouchableOpacity onPress={handleTitlePress}>
           <Text style={styles.titleTable}>StudySpace • {totalFree} FREE</Text>
           <Text style={styles.subHeader}>🟢 {onlineCount} students online • Karma {karma} • {favLib ? `My: ${favLib.name}` : 'Tap ⭐ to set My Library'}</Text>
+        </TouchableOpacity>
+        {/* V22 LEADERBOARD BUTTON */}
+        <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{backgroundColor:'#f59e0b', padding:10, borderRadius:10, marginTop:10, flexDirection:'row', justifyContent:'space-between'}}>
+          <Text style={{color:'white', fontWeight:'900'}}>🏆 Leaderboard - Top Reporters</Text>
+          <Text style={{color:'white', fontWeight:'900'}}>{myRank ? `You #${myRank}` : `Karma ${karma}`} →</Text>
         </TouchableOpacity>
       </LinearGradient>
       {mySeatTimer && !showStillThere && (
@@ -450,7 +466,28 @@ export default function App() {
           <TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V21 REAL DATA READY • {onlineCount} online</Text></TouchableOpacity></View>
+      {/* V22 LEADERBOARD MODAL */}
+      <Modal visible={showLeaderboard} animationType="slide" onRequestClose={() => setShowLeaderboard(false)}>
+        <View style={{flex:1, backgroundColor:'#fff7ed', paddingTop:60, padding:16}}>
+          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center'}}>🏆 KNUST Leaderboard</Text>
+          <Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>Most helpful students - real reports only</Text>
+          <View style={{backgroundColor:'#0f172a', padding:14, borderRadius:14, marginTop:16}}><Text style={{color:'white', fontWeight:'900', textAlign:'center'}}>{myRank ? `You are #${myRank}` : `You are not in Top 10 yet`} • Karma {karma} • {totalReportsCount} reports</Text></View>
+          <FlatList data={leaderboard} keyExtractor={item => item.id} contentContainerStyle={{paddingTop:16, paddingBottom:40}}
+            renderItem={({item}) => (
+              <View style={{flexDirection:'row', alignItems:'center', backgroundColor:'white', padding:14, borderRadius:14, marginBottom:10, borderWidth: item.id === user?.uid ? 2 : 0, borderColor: item.id === user?.uid ? '#f59e0b' : 'transparent'}}>
+                <Text style={{fontSize:18, fontWeight:'900', width:35}}>{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`}</Text>
+                <View style={{flex:1}}>
+                  <Text style={{fontWeight:'900', fontSize:14}}>{item.email?.split('@')[0] || 'Student'}{item.id === user?.uid ? ' (You)' : ''}</Text>
+                  <Text style={{color:'#64748b', fontSize:12}}>{item.karma || 100} karma • {item.isPremium ? '⭐ Premium' : 'Free'}</Text>
+                </View>
+                <Text style={{fontWeight:'900', color:'#f59e0b'}}>{item.karma || 100} pts</Text>
+              </View>
+            )}
+          />
+          <TouchableOpacity onPress={() => setShowLeaderboard(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:12, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity>
+        </View>
+      </Modal>
+      <View style={styles.bottomBar}><TouchableOpacity onPress={()=>signOut(auth)}><Text style={{color:'white', textAlign:'center', fontWeight:'700', fontSize:12}}>Logout • Karma {karma} • {totalReportsCount} reports • V22 LEADERBOARD • {onlineCount} online</Text></TouchableOpacity></View>
     </View>
   );
 }
