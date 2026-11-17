@@ -1,82 +1,109 @@
-  rules_version = '2';
+ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper: user is logged in
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
 
-    // Libraries - everyone can read, only admin can write
-    match /libraries/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // Users - everyone can read for Leaderboard, only owner can write
+    // USERS - anyone logged in can read, only owner can write own doc
+    // BUT: karma / trustScore / isPremium must NOT be set by client - admin only
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow create: if isOwner(userId)
+        && !('karma' in request.resource.data)
+        && !('trustScore' in request.resource.data)
+        && !('isPremium' in request.resource.data);
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['karma', 'trustScore', 'isPremium', 'expoPushToken'])
+        // Presence + favLib + extraWatches are OK from client, karma is NOT
+        || isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['presence', 'lastSeen', 'favLibId', 'expoPushToken', 'pushUpdatedAt']);
+      allow delete: if false;
     }
 
+    // LIBRARIES - everyone can read, logged-in can update ONLY seat count + timestamps
+    // This is what makes Enter -1 / Leave +1 / Report work from the app
+    match /libraries/{libId} {
+      allow read: if true;
+      allow create, delete: if false; // Only you via Admin Panel / Console
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'confirmedStatus', 'lastVerified', 'updatedAt']);
+    }
+
+    // REPORTS - anyone logged in can read, only create own report
+    match /reports/{reportId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.availableSeats >= -1
+        && request.resource.data.availableSeats <= 1000;
+      allow update, delete: if false; // Reports are immutable - no editing history
+    }
+
+    // LEAVING REPORTS - same as reports
+    match /leavingReports/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // QUEUE + WATCHLIST - owner only
+    match /queue/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || request.auth.uid != null);
+        // Anyone logged in can update position/est - needed for recalcQueuePositions
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    match /watchlist/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // LEAVING ASSIGNMENTS / HOLDS - critical for V26
+    // Create: you can Hold for yourself, or system can assign to next user
+    // Update: assigned user can Claim / Decline / Expire it
+    match /leavingAssignments/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && (request.resource.data.assignedTo == request.auth.uid
+            || request.resource.data.assignedFrom == request.auth.uid);
+      allow update: if isSignedIn()
+        && (resource.data.assignedTo == request.auth.uid
+            || resource.data.assignedFrom == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedAt', 'declinedAt', 'expiredAt']);
+      allow delete: if false;
+    }
+
+    // ACTIVE SEATS - owner only
+    match /activeSeats/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // PAYMENTS - user creates own PENDING, never updates to APPROVED
+    match /payments/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'PENDING_VERIFICATION';
+      allow update, delete: if false; // Only admin in Console can verify
+    }
+
+    // ADMINS - only read by owner to check if they are admin
     match /admins/{userId} {
       allow read: if isOwner(userId);
       allow write: if false;
     }
 
-    // Reports - everyone can read for consensus, owner can create
-    match /reports/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
-    }
-
-    // Watchlist + Queue - V24 VQ NEEDS THIS: anyone signed in can READ all, to count watchers
-    match /watchlist/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow update: if isAdmin();
-    }
-
-    match /queue/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-    }
-
-    // V24 My Activity - Leaving, Payments, ActiveSeats
-    match /leavingReports/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
-    }
-
-    match /leavingAssignments/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
-    }
-
-    match /payments/{docId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    match /activeSeats/{docId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
-    }
-
-    // Catch-all for other collections you already have
+    // Fallback - deny everything else
     match /{document=**} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }
