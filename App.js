@@ -1,6 +1,6 @@
- // ===== V25 FINAL + HOLD + AUTO-EXPIRE + GPS CLAIM - StudySpace =====
+ // ===== V25.1 FINAL + HOLD + TODAY'S REPORT + WHATSAPP EXPORT - StudySpace =====
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState, Image } from 'react-native';
+import { View, Text, TextInput, FlatList, StyleSheet, Alert, Modal, Platform, ScrollView, TouchableOpacity, Switch, AppState, Image, Share } from 'react-native';
 import { collection, onSnapshot, addDoc, doc, setDoc, query, where, serverTimestamp, deleteDoc, getDocs, updateDoc, getDoc, orderBy, limit, runTransaction, Timestamp, increment } from 'firebase/firestore';
 import { db, auth } from './firebaseConfig';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
@@ -56,7 +56,7 @@ function GuideContent(){
     <View>
       <Text style={{fontSize:28, textAlign:'center'}}>📚</Text>
       <Text style={{fontSize:20, fontWeight:'900', textAlign:'center', marginTop:6}}>StudySpace - User Guide & Policy</Text>
-      <Text style={{textAlign:'center', color:'#64748b', marginTop:4}}>For KNUST Students - Version V25</Text>
+      <Text style={{textAlign:'center', color:'#64748b', marginTop:4}}>For KNUST Students - Version V25.1</Text>
       <P>Welcome to StudySpace. StudySpace helps you find a free seat in any KNUST library in seconds, without walking around. We use REAL reports from students like you. No fake data.</P>
       <H>1. 🏆 Leaderboard Button</H>
       <P>Where: Top of home screen, orange card. What it does: Shows Top 10 most helpful students.</P>
@@ -64,32 +64,33 @@ function GuideContent(){
       <B>Report a seat = +10 Karma</B><B>Leave a seat = +5 Karma</B><B>Fake reports = Karma removed</B>
       <H>2. 📋 My Activity Button</H>
       <P>Where: Top of home screen, white card. This is YOUR personal page. It shows everything YOU have done.</P>
-      <P><Text style={{fontWeight:'800'}}>a) 🔔 My Queue:</Text> Shows libraries you are watching. 👀 5 watching = 5 students want this library, including you. You #2 • ~10 min = You are 2nd in line. This number is LIVE. If someone joins, 5 becomes 6 automatically in 1-2 seconds. You don't need to refresh.</P>
-      <P><Text style={{fontWeight:'800'}}>b) 📝 My Reports:</Text> Shows all seats you reported. Example: Prempeh • 25 seats • REPORT • 2h ago • 📸 Photo. Tap the photo to view it full screen. It shows ✅ Verified if your photo passed checks.</P>
-      <P><Text style={{fontWeight:'800'}}>c) ⬆️ My Leaves:</Text> Shows all times you left a seat. Example: Prempeh • Block B Row 3 • 1h ago • You left +1 seat</P>
-      <P><Text style={{fontWeight:'800'}}>d) 💳 My Purchases:</Text> Shows your Premium payments. Example: GHS 1 • PENDING_VERIFICATION. PENDING = Admin has not verified yet. Wait a few minutes.</P>
-      <H>3. 📝 Report Button</H>
+      <P><Text style={{fontWeight:'800'}}>a) 🔔 My Queue:</Text> Shows libraries you are watching. 👀 5 watching = 5 students want this library, including you. You #2 • ~10 min = You are 2nd in line.</P>
+      <P><Text style={{fontWeight:'800'}}>b) 📝 My Reports:</Text> Shows all seats you reported. Example: Prempeh • 25 seats • REPORT • 2h ago • 📸 Photo.</P>
+      <P><Text style={{fontWeight:'800'}}>c) ⬆️ My Leaves:</Text> Shows all times you left a seat.</P>
+      <P><Text style={{fontWeight:'800'}}>d) 💳 My Purchases:</Text> Shows your Premium payments.</P>
+      <H>3. 📊 Today's Report Button - NEW IN V25.1</H>
+      <P>For librarians & lecturers. Shows FREE seats now, per-library breakdown, occupancy %, and Librarian Insight - which library is FULL and where to send students. Tap Share to WhatsApp to send it to SRC / class group in 1 tap.</P>
+      <H>4. 📝 Report Button</H>
       <P>Where: Inside a library, when you tap a library card. Tell other students how many free seats you SEE right now.</P>
       <B>Be INSIDE the library. You must be less than 500m away.</B><B>Tap library → Tap Report</B><B>Count empty chairs. Example: 25</B><B>Type 25</B><B>Tap 📸 Take LIVE Photo - You MUST take a live photo. No gallery photo.</B><B>Tap Submit</B>
       <P>Rules: You can only report once every 5 minutes per library. Your photo must be taken inside the library (within 40m). Fake report = Karma removed, account can be blocked. You get +10 Karma.</P>
-      <P><Text style={{fontWeight:'800'}}>Where does your photo go?</Text> After Submit, your photo is uploaded to Firebase Storage: reports / library / your-id.jpg. The link is saved in your report. You can see it in My Activity → My Reports. Everyone else can see it in Library Detail → 📸 Latest Report Photo. Tap it to verify the count is real. If it passes LIVE + Inside library + GPS checks, you see ✅ Photo Verified!</P>
-      <H>4. ➡️ Enter -1 Button (I'm Entering)</H>
-      <P>You are taking a seat now, so 1 seat becomes occupied. Be inside library → Tap Enter -1 → Free seats go down by 1. Example: 25 FREE → 24 FREE. Your seat is reserved for 3 hours. We will ask Are you still there? after 3 hours. Use this when you SIT DOWN.</P>
-      <H>5. ⬆️ Leave +1 Button (I'm Leaving)</H>
-      <P>You are leaving your seat, so 1 seat becomes FREE. Be inside library → Tap Leave +1 → Free seats go up by 1. Example: 24 FREE → 25 FREE. You get +5 Karma. If someone is in queue, your seat will be given to them automatically. They will see YOUR TURN! Block B Row 3 • Go in 15 min! Use this when you STAND UP. Please always tap it.</P>
-      <H>6. 🔔 Join Queue / Alert Me Button</H>
-      <P>Join the waiting line for a library that is FULL or you want to watch. Tap library → Tap Join Queue → You see You #2 • ~10 min. When someone leaves, you get YOUR TURN! - You have 15 mins to go and claim it. Tap Claim Seat or Decline.</P>
+      <H>5. ➡️ Enter -1 Button (I'm Entering)</H>
+      <P>You are taking a seat now, so 1 seat becomes occupied. Be inside library → Tap Enter -1 → Free seats go down by 1.</P>
+      <H>6. ⬆️ Leave +1 Button (I'm Leaving)</H>
+      <P>You are leaving your seat, so 1 seat becomes FREE. Be inside library → Tap Leave +1 → Free seats go up by 1. You get +5 Karma.</P>
+      <H>7. 🔔 Join Queue / Alert Me Button</H>
+      <P>Join the waiting line for a library that is FULL or you want to watch. Tap library → Tap Join Queue → You see You #2 • ~10 min.</P>
       <B>To leave queue: Tap same button again - it will say ✓ In Queue - Tap to Leave</B><B>FREE users: Max 3 queues</B><B>PREMIUM users: Max 5 queues</B>
-      <H>7. 🟡 Hold This Seat - NEW IN V25</H>
-      <P>You are at home / hostel and you see someone is leaving. Tap Hold This Seat For 10 Mins. The seat is locked for YOU for 10 mins only. Nobody else in the app can take it. You MUST arrive and tap Claim + Check-In within 10 mins. If you don't arrive, it auto-releases to the next person. ⚠️ Not guaranteed - someone WITHOUT the app who is already inside the library might sit down before you. Rush!</P>
+      <H>8. 🟡 Hold This Seat - NEW IN V25</H>
+      <P>You are at home / hostel and you see someone is leaving. Tap Hold This Seat For 10 Mins. The seat is locked for YOU for 10 mins only. You MUST arrive and tap Claim + Check-In within 10 mins. If you don't arrive, it auto-releases to the next person. ⚠️ Not guaranteed - someone WITHOUT the app who is already inside the library might sit down before you. Rush!</P>
       <B>Hold = 10 mins lock</B><B>Claim must be done INSIDE library (GPS check)</B><B>If you don't claim, you lose the hold</B>
-      <H>8. ⭐ Set as My Library Button</H>
-      <P>On each library card. Makes that library your favourite, like WhatsApp opens to chats. Tap ☆ Set as My Library on Prempeh. Next time you open the app, it will show at top in green: ⭐ My Library: Prempeh - 25 FREE. You can change it anytime.</P>
-      <H>9. 🪑 Are You Still There? Pop-up</H>
-      <P>Appears automatically after 3 hours of sitting. Checks if you are still there, so we don't hold a seat for someone who already left. If still there, tap Yes, I'm Still Here +3hrs. If you left, tap No, I'm Leaving - Free My Seat. If you don't answer in 15 mins, your seat will be freed automatically.</P>
-      <H>10. ⭐ Get Premium - GHS 1 Button</H>
-      <P>Appears when you try to watch more than 3 libraries. Gives you 5 queues instead of 3, and Premium badge on Leaderboard. Tap Pay - Pay GHS 1 with Paystack → Tap I've Paid - Request Verification → Admin will verify in a few minutes. It is NOT instant.</P>
-      <H>11. 👋 Logout Button</H>
+      <H>9. ⭐ Set as My Library Button</H>
+      <P>On each library card. Makes that library your favourite.</P>
+      <H>10. 🪑 Are You Still There? Pop-up</H>
+      <P>Appears automatically after 3 hours of sitting. If you don't answer in 15 mins, your seat will be freed automatically.</P>
+      <H>11. ⭐ Get Premium - GHS 1 Button</H>
+      <P>Appears when you try to watch more than 3 libraries. Gives you 5 queues instead of 3.</P>
+      <H>12. 👋 Logout Button</H>
       <P>Bottom of home screen. Logs you out safely.</P>
       <H>🔒 Privacy & Company Policy</H>
       <B>We collect your email, phone, location (only when you report / enter / leave / claim), and photos of library seats only.</B>
@@ -141,11 +142,12 @@ export default function App() {
   const [myPurchasesList, setMyPurchasesList] = useState([]);
   const [viewingPhoto, setViewingPhoto] = useState(null);
   const [showGuide, setShowGuide] = useState(false);
-  // V25 NEW: holds + leaving soon
   const [myHolds, setMyHolds] = useState([]);
   const [leavingSoonMap, setLeavingSoonMap] = useState({});
   const [isHolding, setIsHolding] = useState(false);
   const [holdCountdown, setHoldCountdown] = useState(0);
+  // V25.1 NEW
+  const [showTodayReport, setShowTodayReport] = useState(false);
 
   const handleTitlePress = async () => { const now = Date.now(); if (now - lastTapRef.current > 2000) { setTapCount(1); } else { const newCount = tapCount + 1; setTapCount(newCount); if (newCount >= 3) { setTapCount(0); if (!user) return; try { const adminSnap = await getDoc(doc(db, "admins", user.uid)); if (adminSnap.exists() && adminSnap.data().active === true) setShowAdmin(true); } catch(e){} } } lastTapRef.current = now; };
   useEffect(() => { const unsub = NetInfo.addEventListener(s => setIsOffline(!s.isConnected)); return () => unsub(); }, []);
@@ -166,7 +168,6 @@ export default function App() {
           const expSec = toSeconds(data.expiresAt);
           if (expSec && expSec < nowSec) {
             await updateDoc(doc(db, "leavingAssignments", d.id), { status: "EXPIRED", expiredAt: serverTimestamp() });
-            // Give to next person in queue
             const queueQ = query(collection(db,"queue"), where("libraryId","==",data.libraryId), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc"), limit(1));
             const qsnap = await getDocs(queueQ);
             if (!qsnap.empty && qsnap.docs[0].data().userId !== data.assignedTo) {
@@ -180,7 +181,6 @@ export default function App() {
     return () => clearInterval(expireCheck);
   }, [user]);
 
-  // V25: Hold countdown ticker
   useEffect(() => {
     if (myHolds.length===0) { setHoldCountdown(0); return; }
     const t = setInterval(() => {
@@ -209,21 +209,45 @@ export default function App() {
   const takePhoto = async () => { try { const perm = await ImagePicker.requestCameraPermissionsAsync(); if(!perm.granted){ Alert.alert("Camera permission needed"); return; } const result = await ImagePicker.launchCameraAsync({ quality: 0.3, allowsEditing: false, exif: true, base64: true }); if(!result.canceled){ const asset = result.assets[0]; if(asset.fileSize && asset.fileSize > MAX_PHOTO_SIZE_KB * 1024){ Alert.alert(`Photo too large`); return; } setReportPhoto(asset); setPhotoTakenAt(Date.now()); if(Location){ try{ const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest }); setPhotoLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy || 999 }); }catch(e){ setPhotoLocation(null); } } } } catch(e){ Alert.alert("Camera error", e.message); } };
   const recalcQueuePositions = async (libraryId) => { try { const q = query(collection(db,"queue"), where("libraryId","==",libraryId), where("status","==","WAITING"), orderBy("fairScore","desc"), orderBy("createdAt","asc")); const snap = await getDocs(q); let pos = 1; const jobs = []; for (const d of snap.docs) { if (d.data().userId !== user?.uid) { pos++; continue; } const est = Math.max(2, (pos - 1) * 10); jobs.push(updateDoc(doc(db,"queue",d.id), { position: pos, estMins: est }).catch(()=>{})); pos++; } await Promise.all(jobs); } catch(e) {} };
 
+  // ===== V25.1: TODAY'S REPORT BUILD + SHARE =====
+  const buildTodayReportText = () => {
+    const dateStr = new Date().toDateString();
+    let lines = [];
+    lines.push(`📚 StudySpace - Today's Report`);
+    lines.push(`📅 ${dateStr} • KNUST`);
+    lines.push(``);
+    lines.push(`🟢 ${libraries.reduce((a,b)=>a+getEffectiveData(b).seats,0)} FREE SEATS NOW • 🟢 ${onlineCount} online`);
+    lines.push(``);
+    libraries.forEach(lib => {
+      const eff = getEffectiveData(lib);
+      const occ = Math.min(100, Math.round(((lib.totalSeats - eff.seats) / lib.totalSeats) * 100));
+      const status = eff.seats <= 0 ? `🔴 FULL` : eff.seats < lib.totalSeats*0.3 ? `🟡 ${eff.seats} FREE` : `🟢 ${eff.seats} FREE`;
+      lines.push(`${status} • ${lib.name} • ${occ}% full • 👀 ${watchCounts[lib.id]||0} watching • Updated ${formatTimeAgo(eff.lastVerified)}`);
+    });
+    const fullLibs = libraries.filter(l => getEffectiveData(l).seats <= 0);
+    const freeLibs = libraries.filter(l => getEffectiveData(l).seats > 0).sort((a,b) => getEffectiveData(b).seats - getEffectiveData(a).seats);
+    lines.push(``);
+    lines.push(`💡 Librarian Insight:`);
+    if (fullLibs.length === 0) lines.push(`All libraries have space. No crowding.`);
+    else if (freeLibs.length === 0) lines.push(`All libraries FULL. Consider opening extra study rooms.`);
+    else lines.push(`${fullLibs.map(l=>l.name).join(', ')} FULL. Send students to ${freeLibs[0]?.name} - ${getEffectiveData(freeLibs[0]).seats} FREE seats.`);
+    lines.push(``);
+    lines.push(`Data: Real student reports via StudySpace. Porter is final authority.`);
+    lines.push(`Download StudySpace to see live seats.`);
+    return lines.join('\n');
+  };
+  const shareTodayReport = async () => {
+    try { await Share.share({ message: buildTodayReportText(), title: "StudySpace Today's Report" }); } catch(e){ Alert.alert(e.message); }
+  };
+
   // ===== V25: HOLD SEAT =====
   const handleHoldSeat = async (lib) => {
     if (isHolding) return; setIsHolding(true);
     try {
       if (myHolds.length > 0) { Alert.alert("You already have a Hold", "Finish or release your current hold first."); return; }
       if (myAssignments.length > 0) { Alert.alert("You already have a seat assigned", "Claim or decline it first."); return; }
-      // Check if someone else already holds / pending for this library - prevent double hold
       const pendingQ = query(collection(db,"leavingAssignments"), where("libraryId","==",lib.id), where("status","==","PENDING"));
       const pendingSnap = await getDocs(pendingQ);
-      // If there is a leaving seat that is unclaimed, allow hold. If all are taken by others, warn.
-      const otherHold = pendingSnap.docs.find(d => d.data().assignedTo !== user.uid);
-      if (otherHold && pendingSnap.docs.length >= Math.max(1, getEffectiveData(lib).seats)) {
-        // Still allow - but warn that queue is ahead. For V25 we allow hold only if a leaving seat exists
-      }
-      // Find a leaving seat to hold - use latest leaving assignment or create a hold request
       const freeBlock = String.fromCharCode(65 + Math.floor(Math.random()*3)); const freeRow = Math.floor(Math.random()*8)+1;
       await addDoc(collection(db, "leavingAssignments"), { libraryId: lib.id, libraryName: lib.name, assignedTo: user.uid, assignedFrom: "HOLD_REQUEST", block: freeBlock, row: freeRow, status: "PENDING", type: "HOLD", createdAt: serverTimestamp(), expiresAt: Timestamp.fromDate(new Date(Date.now() + HOLD_MINS*60*1000)) });
       Alert.alert(`Seat Held for ${HOLD_MINS} mins!`, `Block ${freeBlock} Row ${freeRow} locked for you.\n\n⚠️ Not guaranteed - someone WITHOUT the app who is already inside may sit down before you. RUSH!\n\nYou must Claim inside the library within ${HOLD_MINS} mins.`);
@@ -236,17 +260,14 @@ export default function App() {
   // ===== V25: CLAIM WITH GPS + EXPIRY CHECK =====
   const handleClaimAssignment = async (assignment) => {
     try {
-      // 1. Expiry check - NEW
       const expSec = toSeconds(assignment.expiresAt);
       if (expSec && expSec < Date.now()/1000) { Alert.alert("Expired", "Your hold expired after 10/15 mins. Seat was given to next person."); await updateDoc(doc(db,"leavingAssignments", assignment.id), { status: "EXPIRED" }).catch(()=>{}); return; }
-      // 2. GPS check - NEW - must be inside library to claim
       const libForCheck = libraries.find(l=>l.id===assignment.libraryId) || { id: assignment.libraryId, name: assignment.libraryName };
       const check = await verifyInsideLibrary(libForCheck);
       if (!check.allowed) { Alert.alert("You are not inside yet", "Go to the library first, then tap Claim. Your hold is still active until it expires."); return; }
       await runTransaction(db, async (transaction) => { const assignRef = doc(db,"leavingAssignments", assignment.id); const snap = await transaction.get(assignRef); if (!snap.exists()) throw new Error("Assignment gone"); if (snap.data().status !== "PENDING") throw new Error("Already claimed / expired"); transaction.update(assignRef, { status: "CLAIMED", claimedAt: serverTimestamp() }); });
       const q = query(collection(db,"queue"), where("libraryId","==",assignment.libraryId), where("userId","==",user.uid), where("status","==","WAITING")); const snap = await getDocs(q); for (const d of snap.docs) await updateDoc(doc(db,"queue",d.id), { status: "COMPLETED" });
       await recalcQueuePositions(assignment.libraryId);
-      // If it was a HOLD, now convert to active seat
       const expiresAt = Timestamp.fromDate(new Date(Date.now() + 3*60*60*1000));
       await setDoc(doc(db, "activeSeats", `${user.uid}_${assignment.libraryId}`), { userId: user.uid, libraryId: assignment.libraryId, libraryName: assignment.libraryName, enteredAt: serverTimestamp(), expiresAt: expiresAt, status: "ACTIVE" }).catch(()=>{});
       setMySeatTimer({ libraryId: assignment.libraryId, libraryName: assignment.libraryName, expiresAt: expiresAt.toMillis() });
@@ -276,10 +297,10 @@ export default function App() {
         <View style={{flexDirection:'row', gap:8, marginTop:14}}>
           <TouchableOpacity onPress={() => setShowLeaderboard(true)} style={{flex:1, backgroundColor:'#f59e0b', padding:12, borderRadius:16, minWidth:0}}><Text style={{fontSize:18}}>🏆</Text><Text numberOfLines={1} style={{color:'white', fontWeight:'900', fontSize:13, marginTop:2}}>Leaderboard</Text><Text numberOfLines={1} style={{color:'rgba(255,255,255,0.9)', fontSize:11}}>Top reporters</Text><View style={{alignSelf:'flex-start', backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:4, borderRadius:8, marginTop:6}}><Text numberOfLines={1} style={{color:'white', fontWeight:'900', fontSize:11}}>{myRank ? `#${myRank}` : `${karma} pts`}</Text></View></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowActivity(true)} style={{flex:1, backgroundColor:'white', padding:12, borderRadius:16, minWidth:0}}><Text style={{fontSize:18}}>📋</Text><Text numberOfLines={1} style={{color:'#0f172a', fontWeight:'900', fontSize:13, marginTop:2}}>My Activity</Text><Text numberOfLines={1} style={{color:'#64748b', fontSize:11}}>Queue • Reports • Leaves</Text><View style={{alignSelf:'flex-start', backgroundColor:'#f1f5f9', paddingHorizontal:8, paddingVertical:4, borderRadius:8, marginTop:6}}><Text numberOfLines={1} style={{color:'#0f172a', fontWeight:'900', fontSize:11}}>{watchlist.length} watching</Text></View></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowTodayReport(true)} style={{flex:1, backgroundColor:'#0ea5e9', padding:12, borderRadius:16, minWidth:0}}><Text style={{fontSize:18}}>📊</Text><Text numberOfLines={1} style={{color:'white', fontWeight:'900', fontSize:13, marginTop:2}}>Today's Report</Text><Text numberOfLines={1} style={{color:'rgba(255,255,255,0.9)', fontSize:11}}>For librarians</Text><View style={{alignSelf:'flex-start', backgroundColor:'rgba(0,0,0,0.2)', paddingHorizontal:8, paddingVertical:4, borderRadius:8, marginTop:6}}><Text numberOfLines={1} style={{color:'white', fontWeight:'900', fontSize:11}}>{totalFree} FREE now</Text></View></TouchableOpacity>
         </View>
       </LinearGradient>
       {mySeatTimer && !showStillThere && (<View style={{marginHorizontal:14, marginTop:12, backgroundColor:'#dbeafe', padding:14, borderRadius:16, flexDirection:'row', justifyContent:'space-between', alignItems:'center', borderWidth:1, borderColor:'#bfdbfe'}}><View style={{flex:1}}><Text style={{fontWeight:'900', fontSize:13}}>⏳ Seated at {mySeatTimer.libraryName}</Text><Text style={{color:'#1e40af', fontSize:11, marginTop:2}}>Expires in {Math.max(0, Math.ceil((mySeatTimer.expiresAt - Date.now())/60000))} mins</Text></View><TouchableOpacity onPress={()=>{ setMySeatTimer(prev=> prev ? {...prev, expiresAt: Date.now()} : prev); setShowStillThere(true); }} style={{backgroundColor:'#2563eb', paddingHorizontal:12, paddingVertical:8, borderRadius:10}}><Text style={{color:'white', fontWeight:'900', fontSize:11}}>Check Now</Text></TouchableOpacity></View>)}
-      {/* V25 HOLD BANNER */}
       {myHolds.length > 0 && (<View style={{marginHorizontal:14, marginTop:12, backgroundColor:'#fef3c7', padding:14, borderRadius:16, borderWidth:1, borderColor:'#fde68a'}}><Text style={{fontWeight:'900', fontSize:13}}>🟡 HOLD ACTIVE: {myHolds[0].libraryName} • Block {myHolds[0].block} Row {myHolds[0].row}</Text><Text style={{color:'#92400e', fontSize:12, marginTop:2}}>Expires in {Math.floor(holdCountdown/60)}:{String(holdCountdown%60).padStart(2,'0')} • Rush to library & Claim inside!</Text><Text style={{color:'#b45309', fontSize:11, marginTop:4}}>⚠️ Not guaranteed - someone WITHOUT the app may take it.</Text><View style={{flexDirection:'row', gap:8, marginTop:10}}><TouchableOpacity onPress={()=>handleClaimAssignment(myHolds[0])} style={{flex:1, backgroundColor:'#22c55e', padding:11, borderRadius:11}}><Text style={{textAlign:'center', fontWeight:'900', color:'white'}}>Claim + Check-In</Text></TouchableOpacity><TouchableOpacity onPress={()=>handleReleaseHold(myHolds[0])} style={{flex:1, backgroundColor:'#ef4444', padding:11, borderRadius:11}}><Text style={{textAlign:'center', fontWeight:'900', color:'white'}}>Release Hold</Text></TouchableOpacity></View></View>)}
       <View style={styles.searchTable}><Text style={{fontSize:16}}>🔍</Text><TextInput placeholder="Search library, e.g. Prempeh, Engineering..." value={search} onChangeText={setSearch} style={{flex:1, marginLeft:10, fontSize:14}} placeholderTextColor="#94a3b8" />{search ? <TouchableOpacity onPress={()=>setSearch('')}><Text style={{fontWeight:'900', color:'#94a3b8'}}>✕</Text></TouchableOpacity> : null}</View>
       <Text style={{marginHorizontal:16, marginTop:12, fontWeight:'900', fontSize:13, color:'#0f172a'}}>Libraries near you • {filteredLibraries.length} libraries</Text>
@@ -292,6 +313,59 @@ export default function App() {
       <Modal visible={showPay} animationType="slide" onRequestClose={()=>setShowPay(false)}><View style={{flex:1, paddingTop:50, backgroundColor:'white'}}><Text style={{textAlign:'center', fontWeight:'900', fontSize:18}}>⭐ Get Premium - GHS 1</Text><Text style={{textAlign:'center', color:'#64748b', marginTop:6, paddingHorizontal:20}}>Pay with Paystack below, then tap I've Paid - Admin will verify and turn on Premium.</Text><View style={{flex:1, marginTop:12}}><WebView source={{ uri: PAYSTACK_SHOP_URL }} style={{flex:1}} /></View><TouchableOpacity onPress={handlePaidConfirm} style={{backgroundColor:'#22c55e', padding:16, margin:12, borderRadius:14}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>I've Paid - Request Verification</Text></TouchableOpacity><TouchableOpacity onPress={()=>setShowPay(false)} style={{backgroundColor:'#ef4444', padding:14, marginHorizontal:12, marginBottom:16, borderRadius:14}}><Text style={{color:'white', textAlign:'center', fontWeight:'800'}}>Close</Text></TouchableOpacity></View></Modal>
       <Modal visible={showLeaderboard} animationType="slide" onRequestClose={() => setShowLeaderboard(false)}><View style={{flex:1, backgroundColor:'#fff7ed', paddingTop:60, padding:16}}><Text style={{fontSize:26, textAlign:'center'}}>🏆</Text><Text style={{fontSize:22, fontWeight:'900', textAlign:'center', marginTop:4}}>KNUST Leaderboard</Text><Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>Most helpful students - real reports only</Text><View style={{backgroundColor:'#0f172a', padding:16, borderRadius:16, marginTop:16, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}><View><Text style={{color:'white', fontWeight:'900'}}>{myRank ? `You are #${myRank}` : `You are not in Top 10 yet`}</Text><Text style={{color:'#cbd5e1', fontSize:12, marginTop:2}}>Keep reporting to climb</Text></View><View style={{backgroundColor:'#f59e0b', paddingHorizontal:10, paddingVertical:6, borderRadius:10}}><Text style={{color:'white', fontWeight:'900'}}>{karma} pts</Text></View></View><FlatList data={leaderboard} keyExtractor={item => item.id} contentContainerStyle={{paddingTop:16, paddingBottom:40}} renderItem={({item}) => (<View style={{flexDirection:'row', alignItems:'center', backgroundColor:'white', padding:14, borderRadius:16, marginBottom:10, borderWidth: item.id === user?.uid ? 2 : 0, borderColor: item.id === user?.uid ? '#f59e0b' : 'transparent'}}><View style={{width:40, height:40, borderRadius:20, backgroundColor: item.rank===1?'#fef3c7': item.rank===2?'#f1f5f9': item.rank===3?'#ffedd5':'#f8fafc', alignItems:'center', justifyContent:'center'}}><Text style={{fontSize:16, fontWeight:'900'}}>{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`}</Text></View><View style={{flex:1, marginLeft:10}}><Text style={{fontWeight:'900', fontSize:14}}>{item.email?.split('@')[0] || 'Student'}{item.id === user?.uid ? ' (You)' : ''}</Text><Text style={{color:'#64748b', fontSize:12}}>{item.isPremium ? '⭐ Premium • ' : ''}{item.karma || 100} karma</Text></View><Text style={{fontWeight:'900', color:'#f59e0b'}}>{item.karma || 100} pts</Text></View>)} /><TouchableOpacity onPress={() => setShowLeaderboard(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity></View></Modal>
       <Modal visible={showActivity} animationType="slide" onRequestClose={() => setShowActivity(false)}><View style={{flex:1, backgroundColor:'#f8fafc', paddingTop:60, padding:16}}><Text style={{fontSize:26, textAlign:'center'}}>📋</Text><Text style={{fontSize:22, fontWeight:'900', textAlign:'center', marginTop:4}}>My Activity</Text><Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>Your queue, reports, leaves & purchases</Text><View style={{flexDirection:'row', flexWrap:'wrap', gap:10, marginTop:16}}><TouchableOpacity onPress={() => setActivityTab('queue')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='queue' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center'}}><Text style={{fontSize:22}}>🔔</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='queue' ? 'white' : '#0f172a'}}>My Queue</Text><Text style={{fontSize:11, color: activityTab==='queue' ? '#cbd5e1' : '#64748b'}}>{watchlist.length} watching • Tap to see VQ</Text></TouchableOpacity><TouchableOpacity onPress={() => setActivityTab('reports')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='reports' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center'}}><Text style={{fontSize:22}}>📝</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='reports' ? 'white' : '#0f172a'}}>My Reports</Text><Text style={{fontSize:11, color: activityTab==='reports' ? '#cbd5e1' : '#64748b'}}>{totalReportsCount} reports</Text></TouchableOpacity><TouchableOpacity onPress={() => setActivityTab('leaves')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='leaves' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center'}}><Text style={{fontSize:22}}>⬆️</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='leaves' ? 'white' : '#0f172a'}}>My Leaves</Text><Text style={{fontSize:11, color: activityTab==='leaves' ? '#cbd5e1' : '#64748b'}}>{myLeavesList.length} leaves</Text></TouchableOpacity><TouchableOpacity onPress={() => setActivityTab('purchases')} style={{flex:1, minWidth:'45%', backgroundColor: activityTab==='purchases' ? '#0f172a' : 'white', padding:16, borderRadius:18, alignItems:'center'}}><Text style={{fontSize:22}}>💳</Text><Text style={{fontWeight:'900', marginTop:4, color: activityTab==='purchases' ? 'white' : '#0f172a'}}>My Purchases</Text><Text style={{fontSize:11, color: activityTab==='purchases' ? '#cbd5e1' : '#64748b'}}>{myPurchasesList.length} purchases</Text></TouchableOpacity></View><ScrollView style={{marginTop:16}} showsVerticalScrollIndicator={false}>{activityTab === 'queue' && (<View><Text style={{fontWeight:'900', fontSize:15}}>VQ - Who is watching with you?</Text><Text style={{color:'#64748b', fontSize:12, marginTop:2}}>Live count - updates when someone joins/leaves</Text>{libraries.filter(l => watchlist.includes(l.id)).length === 0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, marginTop:10, alignItems:'center'}}><Text style={{fontSize:28}}>👀</Text><Text style={{color:'#64748b', marginTop:6, textAlign:'center'}}>You are not watching any library yet.{'\n'}Tap a library and Join Queue first.</Text></View>}{libraries.filter(l => watchlist.includes(l.id)).map(lib => (<View key={lib.id} style={{backgroundColor:'white', padding:16, borderRadius:18, marginTop:12, borderWidth:1, borderColor:'#dcfce7'}}><View style={{flexDirection:'row', justifyContent:'space-between'}}><Text style={{fontWeight:'900', fontSize:15}}>{lib.name}</Text><View style={{backgroundColor:'#dcfce7', paddingHorizontal:9, paddingVertical:5, borderRadius:10}}><Text style={{fontWeight:'900', color:'#15803d', fontSize:12}}>👀 {watchCounts[lib.id] || 1} watching</Text></View></View><Text style={{color:'#64748b', fontSize:12, marginTop:8}}>Your position: {queueMap[lib.id] ? `#${queueMap[lib.id].pos} • ~${queueMap[lib.id].est} min` : 'Watching'}</Text><Text style={{fontSize:12, marginTop:6, color:'#15803d', fontWeight:'700'}}>VQ: {watchCounts[lib.id] || 1} students want this library, including you</Text></View>))}<Text style={{fontWeight:'900', fontSize:15, marginTop:18}}>All Libraries - VQ Count</Text>{libraries.map(lib => (<View key={'vq-'+lib.id} style={{backgroundColor:'white', padding:14, borderRadius:14, marginTop:8, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}><Text style={{fontWeight:'700', fontSize:13}}>{lib.name}</Text><Text style={{fontWeight:'900', color:'#7c3aed'}}>👀 {watchCounts[lib.id] || 0} watching</Text></View>))}</View>)}{activityTab === 'reports' && (<View>{myReportsList.length===0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, alignItems:'center'}}><Text style={{fontSize:28}}>📝</Text><Text style={{color:'#64748b', marginTop:6, textAlign:'center'}}>No reports yet. Go to a library and report.</Text></View>}{myReportsList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginTop:10}}><Text style={{fontWeight:'900'}}>{r.libraryName} • {r.availableSeats} seats • {r.type}</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{formatTimeAgo(r.createdAt)} • {r.hasPhoto ? '📸 Photo' : 'No photo'} • ✅ Verified</Text>{r.photoUrl ? (<TouchableOpacity onPress={() => setViewingPhoto(r.photoUrl)} style={{marginTop:10}}><Image source={{ uri: r.photoUrl }} style={{width:'100%', height:180, borderRadius:12, backgroundColor:'#e2e8f0'}} resizeMode="cover" /><Text style={{position:'absolute', bottom:8, left:8, color:'white', backgroundColor:'rgba(0,0,0,0.6)', paddingHorizontal:8, paddingVertical:4, borderRadius:8, fontSize:11, fontWeight:'800'}}>📸 Tap to view full photo • ✅ Verified</Text></TouchableOpacity>) : (<View style={{marginTop:10, backgroundColor:'#fef2f2', padding:10, borderRadius:10}}><Text style={{color:'#b91c1c', fontSize:12, fontWeight:'700'}}>⚠️ No photo - Not verified</Text></View>)}<Text style={{fontSize:12, marginTop:8, color:'#15803d', fontWeight:'700'}}>✅ Photo Verified • +10 Karma</Text></View>))}</View>)}{activityTab === 'leaves' && (<View>{myLeavesList.length===0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, alignItems:'center'}}><Text style={{fontSize:28}}>⬆️</Text><Text style={{color:'#64748b', marginTop:6}}>No leaves yet.</Text></View>}{myLeavesList.map(r => (<View key={r.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginTop:10}}><Text style={{fontWeight:'900'}}>{r.libraryName} • Block {r.block} Row {r.row}</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{formatTimeAgo(r.createdAt)} • You left +1 seat</Text></View>))}</View>)}{activityTab === 'purchases' && (<View>{myPurchasesList.length===0 && <View style={{backgroundColor:'white', padding:18, borderRadius:16, alignItems:'center'}}><Text style={{fontSize:28}}>💳</Text><Text style={{color:'#64748b', marginTop:6, textAlign:'center'}}>No purchases yet. You are on FREE plan.</Text></View>}{myPurchasesList.map(p => (<View key={p.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginTop:10}}><Text style={{fontWeight:'900'}}>GHS {p.amount} • {p.status}</Text><Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{p.libraryName || 'Premium'} • {formatTimeAgo(p.createdAt)}</Text></View>))}</View>)}<View style={{height:20}} /></ScrollView><TouchableOpacity onPress={() => setShowActivity(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginBottom:20}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text></TouchableOpacity></View></Modal>
+      <Modal visible={showTodayReport} animationType="slide" onRequestClose={() => setShowTodayReport(false)}>
+        <View style={{flex:1, backgroundColor:'#f8fafc', paddingTop:60, padding:16}}>
+          <Text style={{fontSize:26, textAlign:'center'}}>📊</Text>
+          <Text style={{fontSize:22, fontWeight:'900', textAlign:'center', marginTop:4}}>Today's Report</Text>
+          <Text style={{textAlign:'center', color:'#64748b', marginTop:6}}>For KNUST Librarians & Lecturers • {new Date().toDateString()}</Text>
+          <View style={{backgroundColor:'#0f172a', padding:16, borderRadius:16, marginTop:16, flexDirection:'row', justifyContent:'space-between'}}>
+            <View><Text style={{color:'white', fontWeight:'900', fontSize:20}}>{totalFree}</Text><Text style={{color:'#cbd5e1', fontSize:11}}>FREE SEATS NOW</Text></View>
+            <View><Text style={{color:'white', fontWeight:'900', fontSize:20}}>{libraries.length}</Text><Text style={{color:'#cbd5e1', fontSize:11}}>LIBRARIES</Text></View>
+            <View><Text style={{color:'white', fontWeight:'900', fontSize:20}}>{totalReportsCount}</Text><Text style={{color:'#cbd5e1', fontSize:11}}>MY REPORTS</Text></View>
+            <View><Text style={{color:'white', fontWeight:'900', fontSize:20}}>🟢 {onlineCount}</Text><Text style={{color:'#cbd5e1', fontSize:11}}>ONLINE</Text></View>
+          </View>
+          <Text style={{fontWeight:'900', fontSize:15, marginTop:18}}>Library Breakdown - Right Now</Text>
+          <ScrollView style={{marginTop:10}} showsVerticalScrollIndicator={false}>
+            {libraries.map(lib => {
+              const eff = getEffectiveData(lib);
+              const occupancy = Math.min(100, Math.round(((lib.totalSeats - eff.seats) / lib.totalSeats) * 100));
+              const isFull = eff.seats <= 0;
+              return (
+                <View key={lib.id} style={{backgroundColor:'white', padding:14, borderRadius:16, marginBottom:10, borderLeftWidth:4, borderLeftColor: isFull ? '#ef4444' : occupancy > 70 ? '#f59e0b' : '#22c55e'}}>
+                  <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                    <Text style={{fontWeight:'900', fontSize:14}}>{lib.name}</Text>
+                    <Text style={{fontWeight:'900', color: isFull ? '#b91c1c' : '#15803d'}}>{isFull ? 'FULL' : `${eff.seats} FREE`}</Text>
+                  </View>
+                  <Text style={{color:'#64748b', fontSize:12, marginTop:4}}>{occupancy}% full • {lib.totalSeats} total • 👀 {watchCounts[lib.id]||0} watching • Updated {formatTimeAgo(eff.lastVerified)}</Text>
+                  <View style={{height:7, backgroundColor:'#f1f5f9', borderRadius:7, marginTop:8, overflow:'hidden'}}>
+                    <View style={{height:7, width:`${occupancy}%`, backgroundColor: isFull ? '#ef4444' : occupancy > 70 ? '#f59e0b' : '#22c55e'}} />
+                  </View>
+                  <Text style={{fontSize:11, marginTop:6, color:'#475569', fontWeight:'700'}}>{isFull ? '⚠️ Action: Open more rooms / advise students to go to other library' : occupancy > 70 ? '⚠️ Getting full - advise early' : '✅ Has space - send students here'}</Text>
+                </View>
+              );
+            })}
+            <View style={{backgroundColor:'#fef3c7', padding:14, borderRadius:16, marginTop:6, marginBottom:12}}>
+              <Text style={{fontWeight:'900', color:'#92400e'}}>💡 Librarian Insight</Text>
+              <Text style={{color:'#92400e', fontSize:12, lineHeight:18, marginTop:6}}>
+                {(() => {
+                  const fullLibs = libraries.filter(l => getEffectiveData(l).seats <= 0);
+                  const freeLibs = libraries.filter(l => getEffectiveData(l).seats > 0).sort((a,b) => getEffectiveData(b).seats - getEffectiveData(a).seats);
+                  if (fullLibs.length === 0) return "All libraries have space right now. No crowding.";
+                  if (freeLibs.length === 0) return "All libraries are FULL. Consider opening extra study rooms.";
+                  return `${fullLibs.map(l=>l.name).join(', ')} ${fullLibs.length>1?'are':'is'} FULL. Send students to ${freeLibs[0]?.name} - it has ${getEffectiveData(freeLibs[0]).seats} FREE seats. This prevents crowding at the entrance.`;
+                })()}
+              </Text>
+              <Text style={{color:'#92400e', fontSize:11, marginTop:8}}>Data source: Real student reports, not official KNUST data. Porter is final authority.</Text>
+            </View>
+          </ScrollView>
+          <TouchableOpacity onPress={shareTodayReport} style={{backgroundColor:'#25D366', padding:15, borderRadius:14, marginBottom:10}}>
+            <Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>💬 Share to WhatsApp / SRC Group</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowTodayReport(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginBottom:20}}>
+            <Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
       <Modal visible={showGuide} animationType="slide" onRequestClose={() => setShowGuide(false)}><View style={{flex:1, backgroundColor:'white', paddingTop:60, paddingHorizontal:16}}><ScrollView showsVerticalScrollIndicator={false}><GuideContent /></ScrollView><TouchableOpacity onPress={() => setShowGuide(false)} style={{backgroundColor:'#0f172a', padding:15, borderRadius:14, marginVertical:16}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Got it - Start Using StudySpace →</Text></TouchableOpacity></View></Modal>
       <Modal visible={!!viewingPhoto} transparent animationType="fade" onRequestClose={() => setViewingPhoto(null)}><View style={{flex:1, backgroundColor:'rgba(0,0,0,0.92)', justifyContent:'center', padding:16}}><TouchableOpacity onPress={() => setViewingPhoto(null)} style={{position:'absolute', top:50, right:20, zIndex:10, backgroundColor:'rgba(255,255,255,0.2)', paddingHorizontal:14, paddingVertical:8, borderRadius:20}}><Text style={{color:'white', fontSize:14, fontWeight:'900'}}>✕ Close</Text></TouchableOpacity><Image source={{ uri: viewingPhoto }} style={{width:'100%', height:'75%', borderRadius:12}} resizeMode="contain" /><Text style={{color:'white', textAlign:'center', marginTop:14, fontWeight:'800'}}>✅ Verified LIVE photo • Taken inside library</Text><Text style={{color:'#cbd5e1', textAlign:'center', fontSize:12, marginTop:4}}>This photo proves the seat count is real.</Text></View></Modal>
       <View style={{ position:'absolute', bottom:78, left:14, right:14, zIndex:10 }}>
