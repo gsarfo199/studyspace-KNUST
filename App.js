@@ -47,51 +47,215 @@ function AdminPanel({ onClose, user }) {
   const doSeed = async () => { const n = Number(seedSeats); if (isNaN(n)) return Alert.alert("Enter number"); const total = Number(seedTotal) || 200; const lat = Number(seedLat) || LIBRARY_COORDINATES[seedLib]?.latitude || 6.67493; const lng = Number(seedLng) || LIBRARY_COORDINATES[seedLib]?.longitude || -1.57123; const libName = seedName || seedLib; const status = getStatusFromSeats(n, total); await setDoc(doc(db,"libraries", seedLib), { name: libName, totalSeats: total, availableSeats: n, confirmedStatus: status, lastVerified: serverTimestamp(), updatedAt: serverTimestamp(), isRealData: true, latitude: lat, longitude: lng, block: "Block A Row 1-5" }, { merge: true }); await addDoc(collection(db,"reports"), { libraryId: seedLib, libraryName: libName, availableSeats: n, consensusSeats: n, status, userId: user.uid, deviceId: "ADMIN_SEED", distance: 0, accuracy: 5, type: 'REPORT', createdAt: serverTimestamp(), hasPhoto: false, trustScore: 100, karma: 100 }); Alert.alert("Seeded REAL", `${libName} = ${n} seats`); };
   return (<ScrollView style={{flex:1, paddingTop:60, padding:20, backgroundColor:'#f8fafc'}}><Text style={{fontWeight:'900', fontSize:20}}>Admin Panel</Text><Text style={{color:'#64748b', marginTop:4}}>{user.uid}</Text><View style={{backgroundColor:'white', padding:16, borderRadius:20, marginTop:16}}><Text style={{fontWeight:'900'}}>Seed REAL Count</Text><TextInput placeholder="prempeh" value={seedLib} onChangeText={setSeedLib} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} /><TextInput placeholder="Library Name" value={seedName} onChangeText={setSeedName} style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} /><TextInput placeholder="Total Seats" value={seedTotal} onChangeText={setSeedTotal} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} /><TextInput placeholder="Free seats" value={seedSeats} onChangeText={setSeedSeats} keyboardType="numeric" style={{backgroundColor:'#f1f5f9', padding:14, borderRadius:12, marginTop:10}} /><TextInput placeholder="Latitude" value={seedLat} onChangeText={setSeedLat} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} /><TextInput placeholder="Longitude" value={seedLng} onChangeText={setSeedLng} keyboardType="decimal-pad" style={{backgroundColor:'#dcfce7', padding:14, borderRadius:12, marginTop:10}} /><TouchableOpacity onPress={doSeed} style={{backgroundColor:'#22c55e', padding:15, borderRadius:12, marginTop:12}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>Seed REAL Count</Text></TouchableOpacity><TouchableOpacity onPress={doResetKarma} style={{backgroundColor:'#f59e0b', padding:15, borderRadius:12, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>RESET ALL KARMA TO 100</Text></TouchableOpacity><TouchableOpacity onPress={doResetAll} style={{backgroundColor:'#ef4444', padding:15, borderRadius:12, marginTop:10}}><Text style={{color:'white', textAlign:'center', fontWeight:'900'}}>CLEAR ALL FAKE DATA</Text></TouchableOpacity></View><TouchableOpacity onPress={onClose} style={{backgroundColor:'#0f172a', padding:14, borderRadius:12, marginTop:20, marginBottom:40}}><Text style={{color:'white', textAlign:'center'}}>Back</Text></TouchableOpacity></ScrollView>);
 }
-
 function GuideContent(){
-  const H = ({children}) => <Text style={{fontWeight:'900', fontSize:16, color:'#0f172a', marginTop:18}}>{children}</Text>;
-  const P = ({children}) => <Text style={{color:'#475569', fontSize:13, lineHeight:19, marginTop:6}}>{children}</Text>;
-  const B = ({children}) => <Text style={{color:'#475569', fontSize:13, lineHeight:19, marginTop:2}}>• {children}</Text>;
+  const H = ({children}) => <Text style={{fontWeight:'900', fontSize:16, color:'#0f172a', marginTop:22}}>{children}</Text>;
+  const P = ({children}) => <Text style={{color:'#475569', fontSize:13, lineHeight:20, marginTop:6}}>{children}</Text>;
+  const B = ({children}) => <Text style={{color:'#475569', fontSize:13, lineHeight:20, marginTop:3}}>• {children}</Text>;
+  const STEP = ({children}) => <Text style={{color:'#0f172a', fontSize:13, lineHeight:20, marginTop:3, fontWeight:'700'}}>{children}</Text>;
+  const WARN = ({children}) => <Text style={{color:'#b45309', fontSize:12, lineHeight:18, marginTop:6, backgroundColor:'#fef3c7', padding:10, borderRadius:10, overflow:'hidden'}}>{children}</Text>;
+  const TIP = ({children}) => <Text style={{color:'#15803d', fontSize:12, lineHeight:18, marginTop:6, backgroundColor:'#dcfce7', padding:10, borderRadius:10, overflow:'hidden'}}>{children}</Text>;
+
   return (
     <View>
       <Text style={{fontSize:28, textAlign:'center'}}>📚</Text>
-      <Text style={{fontSize:20, fontWeight:'900', textAlign:'center', marginTop:6}}>StudySpace - User Guide & Policy</Text>
-      <Text style={{textAlign:'center', color:'#64748b', marginTop:4}}>For KNUST Students - Version V26.1</Text>
-      <P>Welcome to StudySpace. StudySpace helps you find a free seat in any KNUST library in seconds, without walking around. We use REAL reports from students like you. No fake data.</P>
-      <H>1. 🏆 Leaderboard Button</H>
-      <P>Where: Top of home screen, orange card. What it does: Shows Top 10 most helpful students.</P>
-      <B>Tap it to see who has the highest Karma</B><B>You get Karma when you help others</B><B>If you are in Top 10, you will see You are #3</B>
-      <B>Report a seat = +10 Karma</B><B>Leave a seat = +5 Karma</B><B>Fake reports = Karma removed</B>
-      <H>2. 📋 My Activity Button</H>
-      <P>Where: Top of home screen, white card. This is YOUR personal page. It shows everything YOU have done.</P>
-      <P><Text style={{fontWeight:'800'}}>a) 🔔 My Queue:</Text> Shows libraries you are watching. 👀 5 watching = 5 students want this library, including you. You #2 • ~10 min = You are 2nd in line.</P>
-      <P><Text style={{fontWeight:'800'}}>b) 📝 My Reports:</Text> Shows all seats you reported. Example: Prempeh • 25 seats • REPORT • 2h ago • 📸 Photo.</P>
-      <P><Text style={{fontWeight:'800'}}>c) ⬆️ My Leaves:</Text> Shows all times you left a seat.</P>
-      <P><Text style={{fontWeight:'800'}}>d) 💳 My Purchases:</Text> Shows your Premium payments.</P>
-      <H>3. 📊 Today's Report Button</H>
-      <P>For librarians & lecturers. Shows FREE seats now, per-library breakdown, occupancy %, and Librarian Insight - which library is FULL and where to send students. Tap Share to WhatsApp to send it to SRC / class group in 1 tap.</P>
-      <H>4. 📝 Report Button</H>
-      <P>Where: Inside a library, when you tap a library card. Tell other students how many free seats you SEE right now.</P>
-      <B>Be INSIDE the library. You must be less than 500m away.</B><B>Tap library → Tap Report</B><B>Count empty chairs. Example: 25</B><B>Type 25</B><B>Tap 📸 Take LIVE Photo - You MUST take a live photo. No gallery photo.</B><B>Tap Submit</B>
-      <P>Rules: You can only report once every 5 minutes per library. Your photo must be taken inside the library (within 40m). Fake report = Karma removed, account can be blocked. You get +10 Karma.</P>
-      <H>5. ➡️ Enter -1 Button (I'm Entering)</H>
-      <P>You are taking a seat now, so 1 seat becomes occupied. Be inside library → Tap Enter -1 → Free seats go down by 1. If library is FULL (0 seats), Enter is blocked in V26 - Join Queue instead.</P>
-      <H>6. ⬆️ Leave +1 Button (I'm Leaving)</H>
-      <P>You are leaving your seat, so 1 seat becomes FREE. Be inside library → Tap Leave +1 → Free seats go up by 1. You get +5 Karma.</P>
-      <H>7. 🔔 Join Queue / Alert Me Button</H>
-      <P>Join the waiting line for a library that is FULL or you want to watch. Tap library → Tap Join Queue → You see You #2 • ~10 min.</P>
-      <B>To leave queue: Tap same button again - it will say ✓ In Queue - Tap to Leave</B><B>FREE users: Max 3 queues</B><B>PREMIUM users: Max 5 queues</B>
-      <H>8. 🟡 Hold This Seat - FIXED IN V26</H>
-      <P>You can only Hold if someone is actually leaving that library. Tap Hold This Seat For 10 Mins. The REAL Block/Row of the leaving student is locked for YOU for 10 mins only. You MUST arrive and tap Claim + Check-In within 10 mins. If you don't arrive, it auto-releases to the next person. ⚠️ Not guaranteed - someone WITHOUT the app who is already inside the library might sit down before you. Rush!</P>
-      <B>Hold = 10 mins lock</B><B>Claim must be done INSIDE library (GPS check)</B><B>If you don't claim, you lose the hold</B>
-      <H>9. ⭐ Set as My Library Button</H>
-      <P>On each library card. Makes that library your favourite.</P>
-      <H>10. 🪑 Are You Still There? Pop-up</H>
-      <P>Appears automatically after 3 hours of sitting. If you don't answer in 15 mins, your seat will be freed automatically.</P>
-      <H>11. ⭐ Get Premium - GHS 1 Button</H>
-      <P>Appears when you try to watch more than 3 libraries. Gives you 5 queues instead of 3.</P>
-      <H>12. 👋 Logout Button</H>
-      <P>Bottom of home screen. Logs you out safely.</P>
+      <Text style={{fontSize:20, fontWeight:'900', textAlign:'center', marginTop:6}}>StudySpace - Complete User Guide</Text>
+      <Text style={{textAlign:'center', color:'#64748b', marginTop:4}}>For KNUST Students - Version V26.1 • Read this once, you will know everything</Text>
+      <P>StudySpace shows you LIVE free seats in all KNUST libraries, so you don't walk from Prempeh to Engineering to Science looking for a seat. All seat numbers come from REAL students inside the library right now. No fake data.</P>
+      <TIP>💡 GOLDEN RULE: You must be INSIDE the library (less than 500m away) to Report, Enter, Leave, or Claim. If you are in your hostel, you can only Watch / Join Queue / Hold.</TIP>
+
+      <H>🏠 HOME SCREEN - What You See First</H>
+      <P>When you open the app you see:</P>
+      <B>Top dark header: 📚 StudySpace + Total FREE SEATS in all libraries</B>
+      <B>🟢 X online: How many students are using the app RIGHT NOW (in last 3 mins). If someone closes the app, they disappear after 3 mins.</B>
+      <B>⭐ Karma 100: Your points. You start at 100. Report = +10, Leave = +5.</B>
+      <B>Search bar: Type "Prempeh", "Engineering", "Law" to filter.</B>
+      <B>Library cards: One card per library. Green = has FREE seats, Red = FULL, Grey NO DATA = no one reported in 2+ hours, don't trust it.</B>
+      <B>On each card: % full bar, 👀 watching count, 🚶 walking time from your nearest library, ⭐ Set as My Library.</B>
+
+      <H>1. 🏆 LEADERBOARD Button - Top Orange Card</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Top of home, orange card.</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Shows Top 10 most helpful students in KNUST, ranked by Karma.</P>
+      <STEP>How to use:</STEP>
+      <B>1. Tap 🏆 Leaderboard</B>
+      <B>2. You will see your rank at the top: "You are #3" or "You are not in Top 10 yet"</B>
+      <B>3. Below you see 🥇 #1, 🥈 #2, 🥉 #3, then #4 to #10. Each shows name (email before @), karma, and ⭐ if Premium.</B>
+      <B>4. Your own row has an orange border so you can find yourself fast.</B>
+      <B>5. Tap Close to go back.</B>
+      <P><Text style={{fontWeight:'800'}}>How to climb:</Text> Report = +10 Karma, Leave = +5 Karma. Fake reports = Karma removed, account can be blocked.</P>
+      <WARN>⚠️ Don't try to cheat by reporting fake seats. Your photo + GPS is checked. You will lose Karma.</WARN>
+
+      <H>2. 📋 MY ACTIVITY Button - Top White Card</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Top of home, white card next to Leaderboard.</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Your personal history. Everything YOU have done, nobody else's.</P>
+      <P>It has 4 tabs. Tap any tab to switch:</P>
+      <P><Text style={{fontWeight:'800'}}>a) 🔔 My Queue Tab:</Text></P>
+      <B>Shows libraries you are watching / queuing for.</B>
+      <B>Example: Prempeh • 👀 5 watching • Your position: #2 • ~10 min</B>
+      <B>"👀 5 watching" means 5 students want this library, including you.</B>
+      <B>"You #2 • ~10 min" means 1 person is ahead of you. Expect ~10 mins per person.</B>
+      <B>Below that: "All Libraries - VQ Count" shows 👀 count for EVERY library, even ones you are not watching.</B>
+      <P><Text style={{fontWeight:'800'}}>b) 📝 My Reports Tab:</Text></P>
+      <B>Shows every seat report you ever made.</B>
+      <B>Example: Prempeh • 25 seats • REPORT • 2h ago • 📸 Photo</B>
+      <B>If you have a photo, tap it to view full photo. If it says "⚠️ No photo - Not verified", that report was old / not photo-verified.</B>
+      <B>Each verified report = +10 Karma.</B>
+      <P><Text style={{fontWeight:'800'}}>c) ⬆️ My Leaves Tab:</Text></P>
+      <B>Shows every time you left a seat.</B>
+      <B>Example: Prempeh • Block B Row 3 • 1h ago • You left +1 seat</B>
+      <B>Each leave = +5 Karma.</B>
+      <P><Text style={{fontWeight:'800'}}>d) 💳 My Purchases Tab:</Text></P>
+      <B>Shows your Premium payments.</B>
+      <B>Example: GHS 1 • PENDING_VERIFICATION • Premium • 2d ago</B>
+      <B>If it says PENDING, admin has not verified yet. Wait or message admin.</B>
+      <B>If empty, you are on FREE plan.</B>
+      <STEP>To close: Tap Close at bottom.</STEP>
+
+      <H>3. 📊 TODAY'S REPORT Button - Top Blue Card</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Top of home, blue card.</P>
+      <P><Text style={{fontWeight:'800'}}>Who is it for:</Text> Librarians, Lecturers, SRC, Class Reps. But any student can use it.</P>
+      <P><Text style={{fontWeight:'800'}}>What it shows:</Text></P>
+      <B>Top black bar: Total FREE SEATS NOW, Total LIBRARIES, MY REPORTS, 🟢 ONLINE</B>
+      <B>Library Breakdown: Every library, one by one. Example: Prempeh • 25 FREE • 94% full • 👀 3 watching • Updated 2m ago</B>
+      <B>Green left border = Has space, Yellow = Getting full, Red = FULL</B>
+      <B>Under each library: Action advice. "✅ Has space - send students here" or "⚠️ Action: Open more rooms"</B>
+      <B>💡 Librarian Insight at bottom: Auto advice. Example: "Prempeh is FULL. Send students to Engineering - it has 40 FREE seats."</B>
+      <STEP>How to use:</STEP>
+      <B>1. Tap 📊 Today's Report</B>
+      <B>2. Scroll to see all libraries</B>
+      <B>3. Tap 💬 Share to WhatsApp / SRC Group - This opens WhatsApp share sheet. Pick your SRC group, class group, or librarian. The full report text is already written for you.</B>
+      <B>4. Tap Close to go back.</B>
+      <TIP>💡 Use this before exams to tell your class where to go. You will save everyone 30 mins walking.</TIP>
+
+      <H>4. 📝 REPORT Button - Inside Library Detail</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Tap any library card → Bottom sheet opens → Tap 📝 Report (black button).</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> You tell everyone how many FREE seats you SEE right now.</P>
+      <STEP>Step-by-step:</STEP>
+      <B>1. Go INSIDE the library. You must be less than 500m away or it will say "You are X m away".</B>
+      <B>2. Tap the library card, e.g. Prempeh.</B>
+      <B>3. Tap 📝 Report.</B>
+      <B>4. Count empty chairs with your eyes. Example: You count 25 empty chairs.</B>
+      <B>5. Type 25 in the box. It must be a whole number, 0 to total seats. E.g. Prempeh max is 450.</B>
+      <B>6. Tap 📸 Take LIVE Photo - Required. Your camera opens. Take a photo of the empty seats NOW. You CANNOT pick from gallery. If photo is too old (more than 60 seconds) or taken more than 40m away from library, it will be rejected.</B>
+      <B>7. When photo says "Photo OK ✓ Tap Submit", tap Submit ✓.</B>
+      <B>8. You will see "✅ Photo Verified! 25 seats saved • +10 Karma". Tap OK or View My Photo.</B>
+      <P><Text style={{fontWeight:'800'}}>Rules:</Text></P>
+      <B>You can only report once every 5 mins per library. If you try again too soon, it will say "Wait 3m".</B>
+      <B>If 3 students report in last 10 mins, app takes the middle value (median) to avoid one fake report spoiling it.</B>
+      <B>Your photo GPS must be accurate (less than 100m error) or it will say "Photo GPS too weak".</B>
+      <WARN>⚠️ Fake report = Karma removed, account can be blocked. Don't report from hostel.</WARN>
+
+      <H>5. ➡️ ENTER -1 Button - I'm Entering</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Inside library detail → Blue button "➡️ Enter -1".</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> You are taking 1 seat NOW, so FREE seats go DOWN by 1. Example: 25 FREE → 24 FREE.</P>
+      <STEP>How to use:</STEP>
+      <B>1. Be INSIDE the library.</B>
+      <B>2. Tap library card → Tap ➡️ Enter -1.</B>
+      <B>3. App checks your GPS. If you are not inside, it blocks you.</B>
+      <B>4. You will see "Entered -1 seat - Your seat is reserved for 3 hours."</B>
+      <B>5. A blue banner appears on home: "⏳ Seated at Prempeh • Expires in 180 mins".</B>
+      <P><Text style={{fontWeight:'800'}}>If library is FULL (0 FREE):</Text> Enter is BLOCKED in V26.1. It will say "Library is FULL - Join Queue instead". You cannot go below 0 seats.</P>
+      <TIP>💡 Always tap Enter when you sit down. It helps others know the real count.</TIP>
+
+      <H>6. ⬆️ LEAVE +1 Button - I'm Leaving</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Inside library detail → Orange button "⬆️ Leave +1".</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> You are leaving your seat, so FREE seats go UP by 1. Example: 24 FREE → 25 FREE. You get +5 Karma.</P>
+      <STEP>How to use:</STEP>
+      <B>1. Be INSIDE the library (still sitting).</B>
+      <B>2. Tap library card → Tap ⬆️ Leave +1.</B>
+      <B>3. App checks GPS.</B>
+      <B>4. App picks a random Block/Row for you, e.g. Block B Row 3. This is the seat you freed.</B>
+      <B>5. If someone is in queue, it will say "You left! Seat given to next in queue • Block B Row 3 → Assigned. +5 Karma" and that next person gets a 🎉 YOUR TURN! notification.</B>
+      <B>6. If no one is in queue, it will say "You left! Block B Row 3 now FREE • +5 Karma".</B>
+      <B>7. Your blue "Seated" banner disappears.</B>
+      <WARN>⚠️ Tap Leave BEFORE you walk out. If you walk out first, GPS will fail and you can't free the seat.</WARN>
+
+      <H>7. 🔔 JOIN QUEUE / ALERT ME Button - Purple/Green</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Inside library detail → Purple button "🔔 Join Queue".</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> You join the waiting line for a library. You don't need to be inside. You can join from hostel.</P>
+      <STEP>How to use:</STEP>
+      <B>1. Tap library card → Tap 🔔 Join Queue.</B>
+      <B>2. If library is FULL, it says "You're in queue! We'll notify you when a seat frees up."</B>
+      <B>3. If library has space, it says "Watching - We'll alert you when it gets full / free."</B>
+      <B>4. On the card you will now see "🎯 You #2 • ~10 min • In Queue". #2 = you are 2nd, ~10 min = estimated wait.</B>
+      <B>5. To LEAVE queue: Tap the SAME button again. It will now say "✓ In Queue - Tap to Leave". Tap it and you leave.</B>
+      <P><Text style={{fontWeight:'800'}}>Limits:</Text></P>
+      <B>FREE users: Max 3 queues at once. If you try a 4th, it will open Premium payment.</B>
+      <B>PREMIUM users: Max 5 queues.</B>
+      <P><Text style={{fontWeight:'800'}}>When you get a seat:</Text> When someone leaves, the first person in queue gets a green banner 🎉 YOUR TURN! with Block/Row. You have 15 mins to Claim inside library. If you don't claim, it goes to next person.</P>
+
+      <H>8. 🟡 HOLD THIS SEAT Button - Yellow - FIXED IN V26</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Inside library detail → Yellow button "🟡 Hold This Seat For 10 Mins".</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Locks a REAL leaving seat for YOU for 10 mins only, so you can rush to the library.</P>
+      <STEP>How to use:</STEP>
+      <B>1. You can ONLY Hold if someone is actually leaving right now. If no one is leaving, it will say "No Seat To Hold - No one is leaving Prempeh right now. Join Queue instead". This stops fake holds.</B>
+      <B>2. If someone IS leaving, you will see a yellow box on the library card: "🟡 1 leaving soon - Tap to Hold for 10 mins!"</B>
+      <B>3. Tap the library → Tap 🟡 Hold This Seat For 10 Mins.</B>
+      <B>4. You will see "Seat Held for 10 mins! Block B Row 3 locked for you. RUSH!"</B>
+      <B>5. A yellow banner appears on home: "🟡 HOLD ACTIVE: Prempeh • Block B Row 3 • Expires in 09:45 • Rush to library & Claim inside!" with a countdown timer.</B>
+      <B>6. RUSH to the library. You MUST tap Claim + Check-In INSIDE the library (GPS check) within 10 mins.</B>
+      <B>7. If you arrive in time, tap Claim + Check-In. You will see "Seat Claimed! Go to Prempeh Block B Row 3 now."</B>
+      <B>8. If you DON'T arrive in 10 mins, hold auto-expires and goes to next person. You lose it.</B>
+      <B>9. To cancel early, tap Release Hold. Seat passes to next person.</B>
+      <WARN>⚠️ NOT GUARANTEED: Someone WITHOUT the app who is already inside the library might sit on Block B Row 3 before you arrive. Rush! Hold is a head-start, not a reservation like a cinema ticket.</WARN>
+      <P><Text style={{fontWeight:'800'}}>Rules:</Text> You can only have 1 Hold at a time. You cannot Hold if you already have a Queue assignment. Hold = 10 mins, Queue assignment = 15 mins.</P>
+
+      <H>9. 🎉 YOUR TURN! Banner - Green - When You Get A Seat From Queue</H>
+      <P>This appears automatically on home when someone leaves and you are next in queue. It is NOT a button you tap to open - it appears by itself.</P>
+      <B>It says: "🎉 YOUR TURN! Prempeh • Block B Row 3 • Go in 15 min! • Must Claim INSIDE library"</B>
+      <B>Tap Claim Seat → App checks GPS → If inside, seat is yours for 3 hours.</B>
+      <B>Tap Decline → Seat passes to next person immediately.</B>
+      <B>If you ignore it for 15 mins, it expires and goes to next person.</B>
+
+      <H>10. ⭐ SET AS MY LIBRARY Button - On Each Card</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Bottom of each library card: "☆ Set as My Library".</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Makes that library your favourite. It moves to top, gets a green border, and shows a green box on home: "⭐ My Library: Prempeh • 25 FREE".</P>
+      <STEP>How to use:</STEP>
+      <B>1. Tap ☆ Set as My Library on any card.</B>
+      <B>2. It changes to "⭐ My Library" and that library stays at top next time you open app.</B>
+      <B>3. Tap "Open My Library →" in the green box to open it fast.</B>
+      <B>4. To change favourite, tap Set as My Library on a different library.</B>
+
+      <H>11. 🪑 ARE YOU STILL THERE? Pop-up - Automatic</H>
+      <P><Text style={{fontWeight:'800'}}>When:</Text> Appears automatically after 3 hours of sitting (after you tapped Enter or Claimed).</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Checks if you are still sitting or you left without tapping Leave.</P>
+      <STEP>How to use:</STEP>
+      <B>1. Pop-up says "Are you still in the library? Your 3 hours is up" with a 15:00 countdown.</B>
+      <B>2. If YES, still sitting: Tap "Yes, I'm Still Here +3hrs". Your timer resets for another 3 hours.</B>
+      <B>3. If NO, leaving: Tap "No, I'm Leaving - Free My Seat". Your seat becomes FREE (+1) for others.</B>
+      <B>4. If you DON'T answer in 15 mins: Seat is auto-freed. You will see "Seat Freed - You didn't respond in 15 mins".</B>
+      <B>5. You can also tap "Check Now" on the blue Seated banner to trigger this pop-up early.</B>
+      <WARN>⚠️ This stops "ghost seats" - students who leave but forget to tap Leave, so others think library is full when it's not.</WARN>
+
+      <H>12. ⭐ GET PREMIUM - GHS 1 Button - Payment</H>
+      <P><Text style={{fontWeight:'800'}}>When:</Text> Appears when you try to watch more than 3 libraries on FREE plan. It opens a Paystack page.</P>
+      <STEP>How to use:</STEP>
+      <B>1. Tap Get Premium - GHS 1. A Paystack page opens.</B>
+      <B>2. Pay GHS 1 with MoMo / Card.</B>
+      <B>3. After paying, tap "I've Paid - Request Verification".</B>
+      <B>4. It creates a payment record: GHS 1 • PENDING_VERIFICATION. Admin will verify and turn on Premium.</B>
+      <B>5. Premium gives you 5 queues instead of 3, and a ⭐ badge on Leaderboard.</B>
+      <B>6. Check status in My Activity → My Purchases.</B>
+      <B>7. Tap Close if you don't want to pay now.</B>
+
+      <H>13. 📖 HOW TO USE - READ GUIDE Button - Orange Floating Button</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Floating orange button at bottom of home, above Logout. Also on login screen.</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Opens THIS guide. Read it once. You are reading it now.</P>
+      <B>Tap "Got it - Start Using StudySpace →" at bottom to close and start using app.</B>
+
+      <H>14. 👋 LOGOUT Button - Bottom Black Bar</H>
+      <P><Text style={{fontWeight:'800'}}>Where:</Text> Bottom of home, black bar.</P>
+      <P><Text style={{fontWeight:'800'}}>What it does:</Text> Logs you out safely. Your presence becomes offline, your seat timer is saved. Next time you login, if your 3-hour seat is still valid, it will restore.</P>
+      <STEP>How to use: Tap 👋 Logout → You go back to login screen.</STEP>
+
+      <H>15. 🔍 SEARCH BAR</H>
+      <P>Type library name to filter. Example: Type "Eng" → Only Engineering shows. Tap ✕ to clear.</P>
+
+      <H>16. 📸 VIEW PHOTO / TAP TO VIEW FULL</H>
+      <P>Inside library detail, if there is a latest report with photo, you will see "📸 Latest Report Photo - Tap to verify". Tap the photo → Full-screen photo opens with "✅ Verified LIVE photo • Taken inside library". Tap ✕ Close to close. This lets you verify the seat count is real before you walk there.</P>
+
+      <H>17. ❌ CLOSE Buttons</H>
+      <P>Every pop-up has a Close button. Tap it to go back to home without doing anything. Closing a library detail does NOT cancel your Queue or Hold - those stay active.</P>
+
       <H>🔒 Privacy & Company Policy</H>
       <B>We collect your email, phone, location (only when you report / enter / leave / claim), and photos of library seats only.</B>
       <B>Your location is NEVER shared with other students. Only the seat count is shared.</B>
@@ -104,7 +268,7 @@ function GuideContent(){
     </View>
   );
 }
-
+ 
 export default function App() {
   const [libraries, setLibraries] = useState([]);
   const [detailLib, setDetailLib] = useState(null);
